@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Plus, Users, Loader2, Wifi } from "lucide-react"
-import { gameService } from "@/lib/game-service"
+import { gameService, teams } from "@/lib/game-service"
 import { useToast } from "@/hooks/use-toast"
 
 interface HomePageProps {
@@ -24,16 +24,6 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom }: HomePagePro
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [joinDialogOpen, setJoinDialogOpen] = useState(false)
   const { toast } = useToast()
-
-  const iplTeamLogos = [
-    "https://upload.wikimedia.org/wikipedia/en/thumb/c/cd/Mumbai_Indians_Logo.svg/1200px-Mumbai_Indians_Logo.svg.png",
-    "https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Royal_Challengers_Bengaluru_Logo.svg/1200px-Royal_Challengers_Bengaluru_Logo.svg.png",
-    "https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Kolkata_Knight_Riders_Logo.svg/1200px-Kolkata_Knight_Riders_Logo.svg.png",
-    "https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/Delhi_Capitals.svg/1200px-Delhi_Capitals.svg.png",
-    "https://upload.wikimedia.org/wikipedia/en/thumb/2/2b/Chennai_Super_Kings_Logo.svg/1200px-Chennai_Super_Kings_Logo.svg.png",
-    "https://upload.wikimedia.org/wikipedia/en/thumb/5/5c/This_is_the_logo_for_Rajasthan_Royals%2C_a_cricket_team_playing_in_the_Indian_Premier_League_%28IPL%29.svg/1200px-This_is_the_logo_for_Rajasthan_Royals%2C_a_cricket_team_playing_in_the_Indian_Premier_League_%28IPL%29.svg.png",
-    "https://upload.wikimedia.org/wikipedia/en/thumb/5/51/Sunrisers_Hyderabad_Logo.svg/1200px-Sunrisers_Hyderabad_Logo.svg.png",
-  ]
 
   async function handleCreateRoom() {
     if (!roomName.trim()) {
@@ -114,15 +104,15 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom }: HomePagePro
           <CardHeader>
             <CardTitle className="text-center text-slate-100">IPL Teams</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex overflow-x-auto gap-3 md:gap-5 pb-2 pr-2 -mr-2 min-w-0 scrollbar-thin">
-              {iplTeamLogos.map((logo, i) => (
-                <div key={i} className="flex-shrink-0 group will-change-transform">
-                  <div className="w-18 h-18 md:w-20 md:h-20 rounded-xl bg-white/10 border border-white/10 grid place-items-center transition-all duration-200 group-hover:bg-white/15 group-hover:-translate-y-0.5 group-hover:shadow-lg">
+          <CardContent className="overflow-hidden">
+            <div className="flex overflow-x-auto py-4 space-x-6">
+              {teams.map((team) => (
+                <div key={team.id} className="flex-shrink-0 group will-change-transform">
+                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-xl bg-white/5 border border-white/10 grid place-items-center transition-all duration-300 ease-in-out group-hover:bg-white/15 group-hover:-translate-y-1 group-hover:shadow-2xl group-hover:shadow-blue-500/20">
                     <img
-                      src={logo || "/placeholder.svg"}
-                      alt={`team-${i + 1}`}
-                      className="h-10 w-10 md:h-12 md:w-12 object-contain bg-white rounded-full p-2 transition-transform duration-200 group-hover:scale-105"
+                      src={team.logo || "/placeholder.svg"}
+                      alt={team.name}
+                      className="h-16 w-16 md:h-20 md:w-20 object-contain transition-transform duration-300 group-hover:scale-110"
                     />
                   </div>
                 </div>

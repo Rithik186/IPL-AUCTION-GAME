@@ -166,7 +166,7 @@ export default function GameLobby({ gameData, user, onStartGame, onBack }: GameL
                         onClick={() => !isTaken && !loading && handleTeamSelection(team.id)}
                       >
                         <div className="text-center min-w-0">
-                          <div className="mx-auto mb-2 aspect-square w-14 md:w-16 rounded-xl bg-white grid place-items-center ring-1 ring-slate-200 group-hover:ring-amber-300 transition">
+                          <div className="mx-auto mb-2 aspect-square w-14 md:w-16 rounded-xl grid place-items-center transition">
                             <img
                               src={team.logo || "/placeholder.svg"}
                               alt={team.name}

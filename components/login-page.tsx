@@ -128,47 +128,57 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   }
 
   return (
-    <div className="min-h-screen grid place-items-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white relative overflow-hidden">
-      <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-24 -left-24 w-[380px] h-[380px] rounded-full bg-blue-600/15 blur-3xl" />
-        <div className="absolute -bottom-24 -right-24 w-[420px] h-[420px] rounded-full bg-amber-500/15 blur-3xl" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white relative overflow-hidden p-4">
+      {/* Animated background elements */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 z-0">
+        <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 rounded-full bg-blue-600/10 blur-3xl animate-blob-1" />
+        <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 rounded-full bg-amber-500/10 blur-3xl animate-blob-2" />
+        <div className="absolute top-1/4 right-1/4 w-1/4 h-1/4 rounded-full bg-purple-600/10 blur-3xl animate-blob-3" />
       </div>
 
-      <div className="w-full max-w-6xl mx-auto px-4 py-6 md:py-10 grid lg:grid-cols-2 gap-6 md:gap-8 items-center">
+      <div className="relative z-10 w-full max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 items-center">
         {/* hero */}
-        <div className="hidden lg:block">
-          <h1 className="text-pretty text-4xl xl:text-6xl font-black tracking-tight">
-            <span className="bg-gradient-to-r from-blue-300 to-amber-300 bg-clip-text text-transparent">
+        <div className="hidden lg:block text-center lg:text-left">
+          <h1 className="text-pretty text-5xl xl:text-7xl font-black tracking-tight leading-tight">
+            <span className="bg-gradient-to-r from-blue-300 to-amber-300 bg-clip-text text-transparent drop-shadow-lg">
               Sign in. Squad up. Bid big.
             </span>
           </h1>
-          <p className="mt-3 text-blue-100/90 max-w-prose transition-all">{rotating[idx]}</p>
+          <p className="mt-4 text-blue-100/90 max-w-prose mx-auto lg:mx-0 text-lg animate-fade-in-up transition-all duration-500">
+            {rotating[idx]}
+          </p>
 
-          <div className="mt-6 grid grid-cols-3 gap-3">
-            <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center">
-              <div className="text-xl font-bold text-blue-300">10+</div>
-              <div className="text-white/70 text-xs">Teams</div>
+          <div className="mt-8 grid grid-cols-3 gap-4 max-w-md mx-auto lg:mx-0">
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-4 text-center transform hover:scale-105 transition-transform duration-300 shadow-lg hover:shadow-xl">
+              <div className="text-2xl font-bold text-blue-300">10+</div>
+              <div className="text-white/70 text-sm">Teams</div>
             </div>
-            <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center">
-              <div className="text-xl font-bold text-amber-300">₹120Cr</div>
-              <div className="text-white/70 text-xs">Budget</div>
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-4 text-center transform hover:scale-105 transition-transform duration-300 shadow-lg hover:shadow-xl">
+              <div className="text-2xl font-bold text-amber-300">₹120Cr</div>
+              <div className="text-white/70 text-sm">Budget</div>
             </div>
-            <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center">
-              <div className="text-xl font-bold text-emerald-300">Live</div>
-              <div className="text-white/70 text-xs">Leaderboard</div>
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-4 text-center transform hover:scale-105 transition-transform duration-300 shadow-lg hover:shadow-xl">
+              <div className="text-2xl font-bold text-emerald-300">Live</div>
+              <div className="text-white/70 text-sm">Leaderboard</div>
             </div>
           </div>
         </div>
 
         {/* auth */}
-        <Card className="w-full bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl">
-          <CardContent className="p-5 md:p-6">
+        <Card className="w-full bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl rounded-3xl p-6 md:p-8 transform hover:scale-[1.01] transition-transform duration-300">
+          <CardContent className="p-0">
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-white/10 border border-white/20 rounded-xl">
-                <TabsTrigger value="login" className="data-[state=active]:bg-blue-600/30">
+              <TabsList className="grid w-full grid-cols-2 bg-white/10 border border-white/20 rounded-full p-1 mb-6 shadow-inner">
+                <TabsTrigger
+                  value="login"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-md rounded-full transition-all duration-300 text-white/70 hover:text-white"
+                >
                   Login
                 </TabsTrigger>
-                <TabsTrigger value="signup" className="data-[state=active]:bg-blue-600/30">
+                <TabsTrigger
+                  value="signup"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-md rounded-full transition-all duration-300 text-white/70 hover:text-white"
+                >
                   Sign Up
                 </TabsTrigger>
               </TabsList>

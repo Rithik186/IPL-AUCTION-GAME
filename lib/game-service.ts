@@ -23,6 +23,7 @@ export interface GameRoom {
   quitBidders?: string[]
   finalLeaderboard?: { teamName: string; totalPoints: number; playersCount: number; totalSpent: number }[] // Added final leaderboard
   auctionMode?: "traditional" | "fast" // Added auction mode
+  shuffledPhasePlayers?: { [key in AuctionPhase]?: string[] }; // New field for randomized player order per phase
 }
 
 export interface GamePlayer {
@@ -89,14 +90,43 @@ export const teams: Team[] = [
   {
     id: "pbks",
     name: "Punjab Kings",
-    logo: "https://upload.wikimedia.org/wikipedia/en/thumb/9/9e/Punjab_Kings_Logo.svg/1200px-Punjab_Kings_Logo.svg.png",
+    logo: "https://upload.wikimedia.org/wikipedia/en/d/d4/Punjab_Kings_Logo.svg",
     color: "bg-red-500",
+  },
+  {
+    id: "gt",
+    name: "Gujarat Titans",
+    logo: "https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Gujarat_Titans_Logo.svg/1200px-Gujarat_Titans_Logo.svg.png",
+    color: "bg-blue-800",
+  },
+  {
+    id: "lsg",
+    name: "Lucknow Super Giants",
+    logo: "https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/Lucknow_Super_Giants_IPL_Logo.svg/1200px-Lucknow_Super_Giants_IPL_Logo.svg.png",
+    color: "bg-cyan-500",
   },
 ]
 
 type AuctionPhase = "batsman" | "bowler" | "all-rounder" | "wicket-keeper" | "uncapped"
 
 class GameService {
+  private shuffleArray<T>(array: T[]): T[] {
+    let currentIndex = array.length, randomIndex;
+
+    // While there remain elements to shuffle.
+    while (currentIndex !== 0) {
+      // Pick a remaining element.
+      randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex--;
+
+      // And swap it with the current element.
+      [array[currentIndex], array[randomIndex]] = [
+        array[randomIndex], array[currentIndex]];
+    }
+
+    return array;
+  }
+
   private getBiddingIncrement(currentBid: number): number {
     if (currentBid <= 100) return 5 // Up to ₹1 crore: +₹5 lakh
     if (currentBid <= 200) return 10 // ₹1-2 crore: +₹10 lakh
@@ -104,30 +134,17 @@ class GameService {
     return 25 // ₹5+ crore: +₹25 lakh
   }
 
-  private getCurrentPlayer(auctionPhase: AuctionPhase, playerIndex: number): Player | null {
-    let playersInPhase = []
+  public getCurrentPlayer(room: GameRoom, auctionPhase: AuctionPhase, playerIndex: number): Player | null {
+    const soldPlayerIds = new Set(Object.keys(room.soldPlayers || {}))
+    const shuffledPlayerIdsForPhase = room.shuffledPhasePlayers?.[auctionPhase] || [];
 
-    switch (auctionPhase) {
-      case "batsman":
-        playersInPhase = playersDatabase.filter((p) => p.role === "Batsman")
-        break
-      case "bowler":
-        playersInPhase = playersDatabase.filter((p) => p.role === "Bowler")
-        break
-      case "all-rounder":
-        playersInPhase = playersDatabase.filter((p) => p.role === "All-Rounder")
-        break
-      case "wicket-keeper":
-        playersInPhase = playersDatabase.filter((p) => p.role === "Wicket-Keeper")
-        break
-      case "uncapped":
-        playersInPhase = playersDatabase.filter((p) => p.category === "Uncapped")
-        break
-      default:
-        playersInPhase = playersDatabase
-    }
+    // Filter out sold players from the shuffled list
+    const availablePlayerIdsInPhase = shuffledPlayerIdsForPhase.filter(
+      (playerId) => !soldPlayerIds.has(playerId)
+    );
 
-    return playersInPhase[playerIndex] || null
+    const currentPlayerId = availablePlayerIdsInPhase[playerIndex];
+    return currentPlayerId ? playersDatabase.find(p => p.id === currentPlayerId) : null;
   }
 
   private getNextPhase(currentPhase: AuctionPhase): AuctionPhase | null {
@@ -245,7 +262,25 @@ class GameService {
 
   startAuction(roomId: string): Promise<void> {
     const initialPhase: AuctionPhase = "batsman"
-    const initialPlayer = this.getCurrentPlayer(initialPhase, 0)
+
+    const shuffledPhasePlayers: { [key in AuctionPhase]?: string[] } = {};
+    const phases: AuctionPhase[] = ["batsman", "bowler", "all-rounder", "wicket-keeper", "uncapped"];
+
+    phases.forEach(phase => {
+      let playersInPhase = playersDatabase.filter((p) => {
+        if (phase === "batsman") return p.role === "Batsman";
+        if (phase === "bowler") return p.role === "Bowler";
+        if (phase === "all-rounder") return p.role === "All-Rounder";
+        if (phase === "wicket-keeper") return p.role === "Wicket-Keeper";
+        if (phase === "uncapped") return p.category === "Uncapped";
+        return false;
+      }).map(p => p.id);
+      shuffledPhasePlayers[phase] = this.shuffleArray(playersInPhase);
+    });
+
+    const initialPlayerId = shuffledPhasePlayers[initialPhase]?.[0];
+    const foundPlayer = initialPlayerId ? playersDatabase.find(p => p.id === initialPlayerId) : undefined;
+    const initialPlayer = foundPlayer === undefined ? null : foundPlayer;
 
     return update(ref(database, `rooms/${roomId}`), {
       status: "auction",
@@ -261,6 +296,7 @@ class GameService {
       roundShown: {},
       biddingWar: null,
       quitBidders: [],
+      shuffledPhasePlayers: shuffledPhasePlayers, // Store the shuffled lists
     })
   }
 
@@ -395,7 +431,7 @@ class GameService {
           const nextIndex = currentPlayerIndex + 1
           const currentPhase: AuctionPhase = (room.auctionPhase as AuctionPhase) || "batsman"
 
-          let nextPlayer = this.getCurrentPlayer(currentPhase, nextIndex)
+          let nextPlayer = this.getCurrentPlayer(room, currentPhase, nextIndex)
           let nextPhase: AuctionPhase = currentPhase
 
           const isFast = room.auctionMode === "fast"
@@ -406,7 +442,7 @@ class GameService {
             const newPhase = this.getNextPhase(currentPhase)
             if (newPhase) {
               nextPhase = newPhase
-              nextPlayer = this.getCurrentPlayer(newPhase, 0)
+              nextPlayer = this.getCurrentPlayer(room, newPhase, 0)
             } else {
               const finalLeaderboard = this.calculateFinalLeaderboard(room.players)
               update(ref(database, `rooms/${roomId}`), {
@@ -515,7 +551,7 @@ class GameService {
           const nextIndex = currentPlayerIndex + 1
           const currentPhase: AuctionPhase = (room.auctionPhase as AuctionPhase) || "batsman"
 
-          let nextPlayer = this.getCurrentPlayer(currentPhase, nextIndex)
+          let nextPlayer = this.getCurrentPlayer(room, currentPhase, nextIndex)
           let nextPhase: AuctionPhase = currentPhase
 
           const isFast = room.auctionMode === "fast"
@@ -526,7 +562,7 @@ class GameService {
             const newPhase = this.getNextPhase(currentPhase)
             if (newPhase) {
               nextPhase = newPhase
-              nextPlayer = this.getCurrentPlayer(newPhase, 0)
+              nextPlayer = this.getCurrentPlayer(room, newPhase, 0)
             } else {
               const finalLeaderboard = this.calculateFinalLeaderboard(room.players)
               const updates: any = {
@@ -618,16 +654,27 @@ class GameService {
   }
 
   changePhase(roomId: string, phase: AuctionPhase): Promise<void> {
-    const nextPlayer = this.getCurrentPlayer(phase, 0)
-    return update(ref(database, `rooms/${roomId}`), {
-      auctionPhase: phase,
-      playerIndex: 0,
-      currentPlayer: nextPlayer,
-      currentBid: nextPlayer?.basePrice || 0,
-      highestBidder: null,
-      timeLeft: 15,
-      biddingWar: null,
-      quitBidders: [],
+    return new Promise((resolve, reject) => {
+      onValue(ref(database, `rooms/${roomId}`), (snapshot) => {
+        const room = snapshot.val() as GameRoom
+        if (!room) {
+          reject(new Error("Room not found"))
+          return
+        }
+        const nextPlayer = this.getCurrentPlayer(room, phase, 0)
+        update(ref(database, `rooms/${roomId}`), {
+          auctionPhase: phase,
+          playerIndex: 0,
+          currentPlayer: nextPlayer,
+          currentBid: nextPlayer?.basePrice || 0,
+          highestBidder: null,
+          timeLeft: 15,
+          biddingWar: null,
+          quitBidders: [],
+        })
+          .then(() => resolve())
+          .catch(reject)
+      }, { onlyOnce: true })
     })
   }
 }

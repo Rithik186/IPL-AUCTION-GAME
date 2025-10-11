@@ -143,6 +143,36 @@
   .animate-scale-in {
     animation: scaleIn 0.3s ease-out;
   }
+
+  .animate-blob-1 {
+    animation: blob1 12s ease-in-out infinite alternate;
+  }
+  .animate-blob-2 {
+    animation: blob2 14s ease-in-out infinite alternate-reverse;
+  }
+  .animate-blob-3 {
+    animation: blob3 10s ease-in-out infinite alternate;
+  }
+  .animate-fade-in-up {
+    animation: fadeInUp 0.8s ease-out forwards;
+  }
+
+  /* Custom scrollbar for webkit browsers */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
 }
 
 @keyframes float {
@@ -183,5 +213,34 @@
   to {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+@keyframes blob1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+}
+
+@keyframes blob2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-40px, 60px) scale(0.95); }
+  66% { transform: translate(50px, -30px) scale(1.05); }
+}
+
+@keyframes blob3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(20px, 40px) scale(1.02); }
+  66% { transform: translate(-30px, -60px) scale(0.98); }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

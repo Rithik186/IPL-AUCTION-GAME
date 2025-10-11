@@ -18,7 +18,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-      <body className={geistSans.className}>{children}</body>
+      <body
+        className={`${geistSans.className} bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white`}
+      >
+        {children}
+      </body>
     </html>
   )
 }

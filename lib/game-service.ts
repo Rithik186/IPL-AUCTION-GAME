@@ -22,6 +22,7 @@ export interface GameRoom {
   biddingWar?: { team1: string; team2: string; player: string } | null
   quitBidders?: string[]
   finalLeaderboard?: { teamName: string; totalPoints: number; playersCount: number; totalSpent: number }[] // Added final leaderboard
+  auctionMode?: "traditional" | "fast" // Added auction mode
 }
 
 export interface GamePlayer {
@@ -135,6 +136,17 @@ class GameService {
     return currentIndex < phases.length - 1 ? phases[currentIndex + 1] : null
   }
 
+  private getRandomNextPlayer(room: GameRoom): Player | null {
+    const sold = new Set(Object.keys(room.soldPlayers || {}))
+    const unsold = new Set(room.unsoldPlayers || [])
+    const remaining = playersDatabase.filter(
+      (p) => !sold.has(p.id) && !unsold.has(p.id) && room.currentPlayer?.id !== p.id,
+    )
+    if (remaining.length === 0) return null
+    const idx = Math.floor(Math.random() * remaining.length)
+    return remaining[idx]
+  }
+
   private calculateFinalLeaderboard(players: { [key: string]: GamePlayer }): {
     teamName: string
     totalPoints: number
@@ -172,7 +184,7 @@ class GameService {
           [hostId]: {
             id: hostId,
             name: hostName,
-            email: hostEmail,
+            email: hostEmail, // Corrected variable name
             budget: 12000, // 120 crores in lakhs (increased from 100 Cr)
             players: {},
             isReady: false,
@@ -238,6 +250,7 @@ class GameService {
     return update(ref(database, `rooms/${roomId}`), {
       status: "auction",
       auctionPhase: initialPhase,
+      auctionMode: "traditional", // Default to traditional unless host switches
       playerIndex: 0,
       timeLeft: 15,
       currentPlayer: initialPlayer,
@@ -346,7 +359,7 @@ class GameService {
             return
           }
 
-          // Immediately sell to highest bidder
+          // Immediately sell to highest bidder - this will trigger the sold overlay for all users
           try {
             const highestBidderTeam = room.players[room.highestBidder]?.team
             if (highestBidderTeam) {
@@ -385,7 +398,11 @@ class GameService {
           let nextPlayer = this.getCurrentPlayer(currentPhase, nextIndex)
           let nextPhase: AuctionPhase = currentPhase
 
-          if (!nextPlayer) {
+          const isFast = room.auctionMode === "fast"
+          if (isFast) {
+            nextPlayer = this.getRandomNextPlayer(room)
+            nextPhase = currentPhase // phase label becomes irrelevant in fast mode
+          } else if (!nextPlayer) {
             const newPhase = this.getNextPhase(currentPhase)
             if (newPhase) {
               nextPhase = newPhase
@@ -404,7 +421,13 @@ class GameService {
           }
 
           update(ref(database, `rooms/${roomId}`), {
-            playerIndex: nextPlayer ? (nextPhase === currentPhase ? nextIndex : 0) : currentPlayerIndex,
+            playerIndex: isFast
+              ? (room.playerIndex || 0) + 1
+              : nextPlayer
+                ? nextPhase === currentPhase
+                  ? nextIndex
+                  : 0
+                : currentPlayerIndex,
             auctionPhase: nextPhase,
             currentPlayer: nextPlayer,
             currentBid: nextPlayer?.basePrice || 0,
@@ -495,7 +518,11 @@ class GameService {
           let nextPlayer = this.getCurrentPlayer(currentPhase, nextIndex)
           let nextPhase: AuctionPhase = currentPhase
 
-          if (!nextPlayer) {
+          const isFast = room.auctionMode === "fast"
+          if (isFast) {
+            nextPlayer = this.getRandomNextPlayer(room)
+            nextPhase = currentPhase
+          } else if (!nextPlayer) {
             const newPhase = this.getNextPhase(currentPhase)
             if (newPhase) {
               nextPhase = newPhase
@@ -529,7 +556,13 @@ class GameService {
             [`players/${playerId}/budget`]: newBudget,
             [`players/${playerId}/players`]: buyerPlayers,
             soldPlayers,
-            playerIndex: nextPlayer ? (nextPhase === currentPhase ? nextIndex : 0) : currentPlayerIndex,
+            playerIndex: isFast
+              ? (room.playerIndex || 0) + 1
+              : nextPlayer
+                ? nextPhase === currentPhase
+                  ? nextIndex
+                  : 0
+                : currentPlayerIndex,
             auctionPhase: nextPhase,
             currentPlayer: nextPlayer,
             currentBid: nextPlayer?.basePrice || 0,
@@ -578,6 +611,24 @@ class GameService {
 
   deleteRoom(roomId: string): Promise<void> {
     return remove(ref(database, `rooms/${roomId}`))
+  }
+
+  setAuctionMode(roomId: string, mode: "traditional" | "fast"): Promise<void> {
+    return update(ref(database, `rooms/${roomId}`), { auctionMode: mode })
+  }
+
+  changePhase(roomId: string, phase: AuctionPhase): Promise<void> {
+    const nextPlayer = this.getCurrentPlayer(phase, 0)
+    return update(ref(database, `rooms/${roomId}`), {
+      auctionPhase: phase,
+      playerIndex: 0,
+      currentPlayer: nextPlayer,
+      currentBid: nextPlayer?.basePrice || 0,
+      highestBidder: null,
+      timeLeft: 15,
+      biddingWar: null,
+      quitBidders: [],
+    })
   }
 }
 

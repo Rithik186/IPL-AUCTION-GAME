@@ -60,27 +60,30 @@ export default function IPLAuctionApp() {
 
   if (currentPage === "loading") {
     return (
-      <div
-        className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-orange-800 flex items-center justify-center relative"
-        style={{
-          backgroundImage: "url('/bg.jpg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          backgroundAttachment: "fixed",
-        }}
-      >
-        <div className="absolute inset-0 bg-black/40"></div>
-        <Card className="w-96 bg-white/10 backdrop-blur-md border-white/20 relative z-10">
-          <CardContent className="p-8 text-center">
-            <div className="mb-6">
-              <img src="/placeholder-hes4w.png" alt="IPL Auction" className="w-24 h-24 mx-auto mb-4 rounded-full" />
-              <h1 className="text-3xl font-bold text-white mb-2">IPL AUCTION</h1>
-              <p className="text-white/80">Ultimate Cricket Auction Experience</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-24 -left-24 w-[320px] h-[320px] rounded-full bg-blue-600/15 blur-3xl" />
+          <div className="absolute -bottom-24 -right-24 w-[360px] h-[360px] rounded-full bg-amber-500/15 blur-3xl" />
+        </div>
+        <Card className="w-96 bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl animate-float">
+          <CardContent className="p-12 text-center">
+            <div className="mb-8">
+              <div className="w-32 h-32 mx-auto mb-6 relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-orange-500 rounded-full animate-spin-slow"></div>
+                <img
+                  src="/placeholder-hes4w.png"
+                  alt="IPL Auction"
+                  className="w-28 h-28 absolute top-2 left-2 rounded-full border-4 border-white/20"
+                />
+              </div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-orange-400 bg-clip-text text-transparent mb-3">
+                IPL AUCTION 2025
+              </h1>
+              <p className="text-white/70 text-lg">Ultimate Cricket Auction Experience</p>
             </div>
-            <div className="flex items-center justify-center space-x-2 text-white">
-              <Loader2 className="w-6 h-6 animate-spin" />
-              <span>Loading...</span>
+            <div className="flex items-center justify-center space-x-3 text-white/80">
+              <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+              <span className="text-lg font-medium">Loading your experience...</span>
             </div>
           </CardContent>
         </Card>

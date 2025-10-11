@@ -1,15 +1,30 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { ArrowLeft, Gavel, Timer, TrendingUp, UsersIcon, Loader2, X, Trophy, Crown } from "lucide-react"
+import {
+  ArrowLeft,
+  Timer,
+  TrendingUp,
+  UsersIcon,
+  Loader2,
+  Trophy,
+  Crown,
+  Sparkles,
+  MessageCircle,
+  Volume2,
+  VolumeX,
+} from "lucide-react"
 import { gameService, teams, type GameRoom } from "@/lib/game-service"
 import { playersDatabase } from "@/lib/players-data"
 import { useToast } from "@/hooks/use-toast"
 import Confetti from "./confetti"
+import ChatRoom from "./chat-room"
 
 interface AuctionGameProps {
   gameData: any
@@ -24,7 +39,7 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
   const [showSoldOverlay, setShowSoldOverlay] = useState(false)
   const [showUnsoldOverlay, setShowUnsoldOverlay] = useState(false)
   const [showMyTeam, setShowMyTeam] = useState(false)
-  const [showFinalLeaderboard, setShowFinalLeaderboard] = useState(false) // Added final leaderboard state
+  const [showFinalLeaderboard, setShowFinalLeaderboard] = useState(false)
   const [soldPlayerData, setSoldPlayerData] = useState<{
     player: any
     price: number
@@ -33,64 +48,24 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
   const [unsoldPlayerData, setUnsoldPlayerData] = useState<any>(null)
   const [showRoundTransition, setShowRoundTransition] = useState(false)
   const [roundTransitionText, setRoundTransitionText] = useState("")
+  const [soundOn, setSoundOn] = useState(true)
   const { toast } = useToast()
   const audioRef = useRef<HTMLAudioElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-
-  const getBiddingIncrement = (currentBid: number): number => {
-    if (currentBid <= 100) return 5 // Up to ₹1 crore: +₹5 lakh
-    if (currentBid <= 200) return 10 // ₹1-2 crore: +₹10 lakh
-    if (currentBid <= 500) return 20 // ₹2-5 crore: +₹20 lakh
-    return 25 // ₹5+ crore: +₹25 lakh
-  }
-
-  const getCurrentPlayer = () => {
-    if (!room) return null
-
-    const phase = room.auctionPhase || "batsman"
-    const index = room.playerIndex || 0
-
-    let playersInPhase = []
-
-    switch (phase) {
-      case "batsman":
-        playersInPhase = playersDatabase.filter((p) => p.role === "Batsman")
-        break
-      case "bowler":
-        playersInPhase = playersDatabase.filter((p) => p.role === "Bowler")
-        break
-      case "all-rounder":
-        playersInPhase = playersDatabase.filter((p) => p.role === "All-Rounder")
-        break
-      case "wicket-keeper":
-        playersInPhase = playersDatabase.filter((p) => p.role === "Wicket-Keeper")
-        break
-      case "uncapped":
-        playersInPhase = playersDatabase.filter((p) => p.category === "Uncapped")
-        break
-      default:
-        playersInPhase = playersDatabase
-    }
-
-    return playersInPhase[index] || null
-  }
-
-  const currentPlayer = getCurrentPlayer()
+  const [showChat, setShowChat] = useState(false)
+  const processedSoldKeyRef = useRef<string | null>(null)
+  const [currentPlayer, setCurrentPlayer] = useState<any>(null) // Declare currentPlayer variable
+  const [playingXI, setPlayingXI] = useState<string[]>([])
+  const [captainId, setCaptainId] = useState<string | null>(null)
 
   useEffect(() => {
     const unsubscribe = gameService.subscribeToRoom(gameData.id, (roomData) => {
       if (!roomData) return
       setRoom(roomData)
+      setCurrentPlayer(getCurrentPlayer(roomData)) // Set currentPlayer on room update
 
-      if (roomData.status === "completed" && roomData.finalLeaderboard) {
-        setShowFinalLeaderboard(true)
-        setShowConfetti(true)
-        setTimeout(() => {
-          gameService.deleteRoom(gameData.id).catch(console.error)
-        }, 30000) // Delete room after 30 seconds
-      }
-
-      if (roomData.auctionPhase && !roomData.roundShown?.[roomData.auctionPhase]) {
+      const isFast = (roomData as any).auctionMode === "fast"
+      if (!isFast && roomData.auctionPhase && !roomData.roundShown?.[roomData.auctionPhase]) {
         const phaseNames = {
           batsman: "BATSMEN ROUND",
           bowler: "BOWLERS ROUND",
@@ -98,19 +73,17 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
           "wicket-keeper": "WICKET-KEEPERS ROUND",
           uncapped: "UNCAPPED ROUND",
         }
-
         setRoundTransitionText(phaseNames[roomData.auctionPhase] || "NEW ROUND")
         setShowRoundTransition(true)
-
         setTimeout(() => {
           setShowRoundTransition(false)
           gameService.markRoundShown(gameData.id, roomData.auctionPhase!)
-        }, 3000)
+        }, 2000)
       }
     })
 
     return unsubscribe
-  }, [gameData.id])
+  }, [gameData.id, showSoldOverlay])
 
   useEffect(() => {
     if (
@@ -146,28 +119,10 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
   }, [room, gameData.id, showSoldOverlay, showUnsoldOverlay, showRoundTransition, showFinalLeaderboard])
 
   useEffect(() => {
-    if (room && room.status === "auction" && room.timeLeft != null && room.timeLeft > 0) {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current)
-      }
-
-      timerRef.current = setTimeout(async () => {
-        const newTimeLeft = (room.timeLeft ?? 0) - 1
-
-        if (newTimeLeft <= 0) {
-          await handleTimeUp()
-        } else {
-          await gameService.updateTimer(gameData.id, newTimeLeft)
-        }
-      }, 1000)
+    if (audioRef.current) {
+      audioRef.current.muted = !soundOn
     }
-
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current)
-      }
-    }
-  }, [room, gameData.id])
+  }, [soundOn])
 
   const handleTimeUp = async () => {
     if (!room || !currentPlayer) return
@@ -193,29 +148,9 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
     const highestBidderTeam = room.players[room.highestBidder]?.team
     if (!highestBidderTeam) return
 
-    const soldData = {
-      player: currentPlayer,
-      price: room.currentBid,
-      buyerName: room.players[room.highestBidder]?.name || "Unknown",
-    }
-    setSoldPlayerData(soldData)
-
     setLoading(true)
     try {
       await gameService.sellPlayer(gameData.id, room.highestBidder, room.currentBid, highestBidderTeam)
-
-      setShowSoldOverlay(true)
-      setShowConfetti(true)
-
-      if (audioRef.current) {
-        audioRef.current.play().catch(console.error)
-      }
-
-      setTimeout(() => {
-        setShowSoldOverlay(false)
-        setShowConfetti(false)
-        setSoldPlayerData(null)
-      }, 3000)
     } catch (error: any) {
       console.error("Auto-sell error:", error)
       toast({
@@ -262,29 +197,13 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
   const handleQuitBid = async () => {
     if (!room || !room.highestBidder || !room.currentBid || !currentPlayer) return
 
-    const soldData = {
-      player: currentPlayer,
-      price: room.currentBid,
-      buyerName: room.players[room.highestBidder]?.name || "Unknown",
-    }
-    setSoldPlayerData(soldData)
-
     setLoading(true)
     try {
-      await gameService.quitBid(gameData.id, user.id)
-
-      setShowSoldOverlay(true)
-      setShowConfetti(true)
-
-      if (audioRef.current) {
-        audioRef.current.play().catch(console.error)
+      // Store the current highest bidder info before quitting
+      const highestBidderTeam = room.players[room.highestBidder]?.team
+      if (highestBidderTeam) {
+        await gameService.sellPlayer(gameData.id, room.highestBidder, room.currentBid, highestBidderTeam)
       }
-
-      setTimeout(() => {
-        setShowSoldOverlay(false)
-        setShowConfetti(false)
-        setSoldPlayerData(null)
-      }, 3000)
     } catch (error: any) {
       toast({
         title: "Quit Failed",
@@ -327,10 +246,27 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
     return Object.values(userPlayer?.players || {})
   }
 
+  const formatPrice = (price: number) => {
+    if (price >= 100) {
+      return `₹${(price / 100).toFixed(1)} Cr`
+    }
+    return `₹${price} L`
+  }
+
+  if (showChat) {
+    return <ChatRoom roomId={gameData.id} userId={user.id} userName={user.name} onBack={() => setShowChat(false)} />
+  }
+
   if (!room || !currentPlayer) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-orange-800 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-white" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-20 -left-20 w-[300px] h-[300px] rounded-full bg-blue-600/15 blur-3xl" />
+          <div className="absolute -bottom-20 -right-20 w-[340px] h-[340px] rounded-full bg-amber-500/15 blur-3xl" />
+        </div>
+        <div className="animate-float">
+          <Loader2 className="w-16 h-16 animate-spin text-blue-300" />
+        </div>
       </div>
     )
   }
@@ -346,7 +282,11 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
   const isHost = room.hostId === user.id
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-orange-800 relative">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-20 -left-20 w-[300px] h-[300px] rounded-full bg-blue-600/15 blur-3xl" />
+        <div className="absolute -bottom-20 -right-20 w-[340px] h-[340px] rounded-full bg-amber-500/15 blur-3xl" />
+      </div>
       <audio ref={audioRef} preload="auto">
         <source src="/auction-hammer.mp3" type="audio/mpeg" />
       </audio>
@@ -354,66 +294,69 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
       <Confetti active={showConfetti} onComplete={() => setShowConfetti(false)} />
 
       {showFinalLeaderboard && room.finalLeaderboard && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="bg-white/10 backdrop-blur-md border-white/20 max-w-2xl w-full">
-            <CardHeader className="text-center">
-              <CardTitle className="text-white flex items-center justify-center space-x-2">
-                <Trophy className="w-8 h-8 text-yellow-500" />
-                <span className="text-3xl font-bold">FINAL LEADERBOARD</span>
-                <Trophy className="w-8 h-8 text-yellow-500" />
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 flex items-center justify-center p-4">
+          <Card className="bg-white/5 backdrop-blur-xl border border-white/10 max-w-2xl w-full animate-scale-in shadow-2xl">
+            <CardHeader className="text-center bg-gradient-to-r from-blue-300 to-amber-300 rounded-t-lg">
+              <CardTitle className="text-white flex items-center justify-center space-x-3">
+                <Trophy className="w-12 h-12 text-yellow-400 animate-glow" />
+                <span className="text-5xl font-bold bg-gradient-to-r from-yellow-400 to-amber-500 bg-clip-text text-transparent">
+                  FINAL LEADERBOARD
+                </span>
+                <Trophy className="w-12 h-12 text-yellow-400 animate-glow" />
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="p-8">
+              <div className="space-y-6">
                 {room.finalLeaderboard.map((team, index) => (
                   <div
                     key={team.teamName}
-                    className={`flex items-center justify-between p-4 rounded-lg ${
+                    className={`flex items-center justify-between p-6 rounded-2xl transition-all duration-300 hover:scale-105 ${
                       index === 0
-                        ? "bg-yellow-500/20 border-2 border-yellow-500"
+                        ? "bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 border-2 border-yellow-400 shadow-lg shadow-yellow-500/20"
                         : index === 1
-                          ? "bg-gray-300/20 border-2 border-gray-300"
+                          ? "bg-gradient-to-r from-gray-300/20 to-gray-400/20 border-2 border-gray-300 shadow-lg shadow-gray-300/20"
                           : index === 2
-                            ? "bg-orange-500/20 border-2 border-orange-500"
-                            : "bg-white/5"
+                            ? "bg-gradient-to-r from-amber-500/20 to-amber-600/20 border-2 border-amber-400 shadow-lg shadow-amber-500/20"
+                            : "bg-white/5 backdrop-blur-sm border border-white/20"
                     }`}
                   >
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-2">
-                        {index === 0 && <Crown className="w-6 h-6 text-yellow-500" />}
+                    <div className="flex items-center space-x-6">
+                      <div className="flex items-center space-x-3">
+                        {index === 0 && <Crown className="w-10 h-10 text-yellow-400 animate-glow" />}
                         <Badge
                           variant="secondary"
-                          className={`
-                          ${
+                          className={`text-xl px-6 py-3 font-bold ${
                             index === 0
-                              ? "bg-yellow-500 text-black"
+                              ? "bg-yellow-400 text-black shadow-lg"
                               : index === 1
-                                ? "bg-gray-300 text-black"
+                                ? "bg-gray-300 text-black shadow-lg"
                                 : index === 2
-                                  ? "bg-orange-500 text-white"
+                                  ? "bg-amber-500 text-white shadow-lg"
                                   : "bg-white/20 text-white"
-                          }
-                        `}
+                          }`}
                         >
                           #{index + 1}
                         </Badge>
                       </div>
                       <div>
-                        <div className="text-white font-bold text-lg">{team.teamName}</div>
-                        <div className="text-white/60 text-sm">
+                        <div className="text-white font-bold text-2xl">{team.teamName}</div>
+                        <div className="text-white/70 text-lg">
                           {team.playersCount} players • {formatPrice(team.totalSpent)} spent
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-white">{team.totalPoints}</div>
-                      <div className="text-white/60 text-sm">points</div>
+                      <div className="text-4xl font-bold text-blue-300">{team.totalPoints}</div>
+                      <div className="text-white/70 text-lg">points</div>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="mt-6 text-center">
-                <Button onClick={onBack} className="bg-orange-600 hover:bg-orange-700">
+              <div className="mt-10 text-center">
+                <Button
+                  onClick={onBack}
+                  className="bg-gradient-to-r from-blue-300 to-amber-300 hover:from-blue-400 hover:to-amber-400 text-white px-12 py-4 text-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-xl"
+                >
                   Back to Home
                 </Button>
               </div>
@@ -423,62 +366,144 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
       )}
 
       {showSoldOverlay && soldPlayerData && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="text-center animate-pulse">
-            <div className="text-8xl font-black text-red-500 mb-4 transform rotate-12 animate-bounce">SOLD!</div>
-            <div className="text-4xl font-bold text-white mb-2">{soldPlayerData.player.name}</div>
-            <div className="text-2xl text-orange-400 font-bold">{formatPrice(soldPlayerData.price)}</div>
-            <div className="text-lg text-white/80 mt-2">to {soldPlayerData.buyerName}</div>
-            <div className="text-lg text-green-400 mt-2">⭐ {soldPlayerData.player.points} points</div>
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 flex items-center justify-center">
+          <div className="text-center animate-scale-in">
+            <div className="text-9xl font-black text-red-500 mb-8 transform rotate-12 animate-bounce drop-shadow-2xl">
+              SOLD!
+            </div>
+            <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-10 border border-white/10 shadow-2xl">
+              <div className="text-6xl font-bold text-white mb-6">{soldPlayerData.player.name}</div>
+              <div className="text-4xl text-blue-300 font-bold mb-4">{formatPrice(soldPlayerData.price)}</div>
+              <div className="text-2xl text-white/80 mb-4">to {soldPlayerData.buyerName}</div>
+              <div className="text-2xl text-yellow-400 font-bold flex items-center justify-center space-x-3">
+                <Sparkles className="w-8 h-8" />
+                <span>{soldPlayerData.player.points} points</span>
+                <Sparkles className="w-8 h-8" />
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {showUnsoldOverlay && unsoldPlayerData && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="text-center animate-pulse">
-            <div className="text-8xl font-black text-gray-500 mb-4 transform rotate-12 animate-bounce">UNSOLD</div>
-            <div className="text-4xl font-bold text-white mb-2">{unsoldPlayerData.name}</div>
-            <div className="text-lg text-white/80 mt-2">No bids received</div>
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 flex items-center justify-center">
+          <div className="text-center animate-scale-in">
+            <div className="text-9xl font-black text-gray-500 mb-8 transform rotate-12 animate-bounce drop-shadow-2xl">
+              UNSOLD
+            </div>
+            <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-10 border border-white/10 shadow-2xl">
+              <div className="text-6xl font-bold text-white mb-6">{unsoldPlayerData.name}</div>
+              <div className="text-2xl text-white/70">No bids received</div>
+            </div>
           </div>
         </div>
       )}
 
       {showRoundTransition && (
-        <div className="fixed inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-orange-800 z-50 flex items-center justify-center">
-          <div className="text-center animate-pulse">
-            <div className="text-6xl font-black text-white mb-4 animate-bounce">{roundTransitionText}</div>
-            <div className="text-2xl text-white/80">Get ready for the next phase!</div>
+        <div className="fixed inset-0 bg-gradient-to-br from-slate-950/95 via-slate-950/95 to-slate-950/95 backdrop-blur-xl z-50 flex items-center justify-center">
+          <div className="text-center animate-scale-in">
+            <div className="text-8xl font-black text-white mb-8 animate-glow drop-shadow-2xl">
+              {roundTransitionText}
+            </div>
+            <div className="text-4xl text-white/90 animate-pulse">Get ready for the next phase!</div>
           </div>
         </div>
       )}
 
-      <div className="bg-white/10 backdrop-blur-md border-b border-white/20 p-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10">
-              <ArrowLeft className="w-5 h-5" />
+      <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 p-2 md:p-3 shadow-lg">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2 md:gap-3">
+            <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10 px-2">
+              <ArrowLeft className="w-4 h-4" />
             </Button>
-            <h1 className="text-2xl font-bold text-white">IPL Auction 2025</h1>
+            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-300 to-amber-300 bg-clip-text text-transparent">
+              IPL Auction
+            </h1>
+            {room?.hostId === user.id && (
+              <div className="hidden sm:flex items-center gap-2 ml-2">
+                <Button
+                  size="sm"
+                  variant={(room as any)?.auctionMode === "traditional" ? "default" : "outline"}
+                  className={
+                    (room as any)?.auctionMode === "traditional"
+                      ? "bg-blue-600 hover:bg-blue-700"
+                      : "border-white/20 text-white"
+                  }
+                  onClick={() => gameService.setAuctionMode(gameData.id, "traditional")}
+                >
+                  Traditional
+                </Button>
+                <Button
+                  size="sm"
+                  variant={(room as any)?.auctionMode === "fast" ? "default" : "outline"}
+                  className={
+                    (room as any)?.auctionMode === "fast"
+                      ? "bg-amber-500 hover:bg-amber-600 text-black"
+                      : "border-white/20 text-white"
+                  }
+                  onClick={() => gameService.setAuctionMode(gameData.id, "fast")}
+                >
+                  Fast-Paced
+                </Button>
+                {(room as any)?.auctionMode !== "fast" && (
+                  <select
+                    aria-label="Change Round"
+                    className="ml-2 bg-white/10 text-white border border-white/20 rounded-md px-2 py-1 text-xs"
+                    value={room?.auctionPhase || "batsman"}
+                    onChange={(e) => gameService.changePhase(gameData.id, e.target.value as any)}
+                  >
+                    <option value="batsman">Batsman</option>
+                    <option value="bowler">Bowler</option>
+                    <option value="all-rounder">All-Rounder</option>
+                    <option value="wicket-keeper">Wicket-Keeper</option>
+                    <option value="uncapped">Uncapped</option>
+                  </select>
+                )}
+              </div>
+            )}
           </div>
-          <div className="flex items-center space-x-4">
-            <Badge variant="secondary" className="bg-white/20 text-white">
-              {room.auctionPhase?.toUpperCase()} ROUND
+
+          <div className="flex items-center gap-2">
+            <Badge className="hidden md:inline bg-white/10 text-slate-100 border border-white/20 px-2 py-1 text-xs">
+              {(room as any)?.auctionMode === "fast"
+                ? "FAST-PACED"
+                : `${(room?.auctionPhase || "").toUpperCase()} ROUND`}
             </Badge>
-            <div className="flex items-center space-x-2 text-white">
-              <Timer className="w-5 h-5" />
-              <span className="text-xl font-bold">{room.timeLeft ?? 0}s</span>
+            <div className="flex items-center gap-1.5 bg-white/10 rounded-md px-3 py-1.5 border border-white/20">
+              <Timer className="w-4 h-4 text-blue-300" />
+              <span className="text-lg font-bold text-white tabular-nums">{room?.timeLeft ?? 0}s</span>
             </div>
             <Button
               variant="outline"
+              onClick={() => setShowChat(true)}
+              className="border-white/20 text-white hover:bg-white/10 bg-white/5 px-3 py-2"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Chat
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setSoundOn((s) => !s)}
+              className="border-white/20 text-white hover:bg-white/10 bg-white/5 px-3 py-2"
+              aria-pressed={soundOn}
+              title={soundOn ? "Mute sounds" : "Unmute sounds"}
+            >
+              {soundOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => setShowMyTeam(!showMyTeam)}
-              className="border-white/30 text-white hover:bg-white/10 bg-transparent"
+              className="border-white/20 text-white hover:bg-white/10 bg-white/5 px-3 py-2"
             >
               <UsersIcon className="w-4 h-4 mr-2" />
               My Team ({myPlayers.length})
             </Button>
             {isHost && room.status === "auction" && (
-              <Button onClick={handleEndAuction} disabled={loading} className="bg-red-600 hover:bg-red-700">
+              <Button
+                onClick={handleEndAuction}
+                disabled={loading}
+                className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 px-3 py-2"
+              >
                 <Trophy className="w-4 h-4 mr-2" />
                 End Auction
               </Button>
@@ -487,45 +512,52 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto p-4 md:p-6">
         {showMyTeam ? (
-          <Card className="bg-white/10 backdrop-blur-md border-white/20">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center">
+          <Card className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-blue-400/50 transition-all duration-300 hover:scale-105 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-300 to-amber-300 rounded-t-lg">
+              <CardTitle className="text-white flex items-center text-3xl font-bold">
                 {userTeam && (
                   <img
                     src={userTeam.logo || "/placeholder.svg"}
                     alt={userTeam.name}
-                    className="w-8 h-8 object-contain bg-white rounded-full p-1 mr-3"
+                    className="w-12 h-12 object-contain bg-white rounded-full p-1 mr-4 shadow-lg"
                   />
                 )}
                 My Squad - {userTeam?.name}
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-8">
               {myPlayers.length === 0 ? (
-                <div className="text-center text-white/60 py-8">
-                  <p>No players purchased yet</p>
-                  <p className="text-sm">Start bidding to build your squad!</p>
+                <div className="text-center text-white/60 py-16">
+                  <UsersIcon className="w-20 h-20 mx-auto mb-6 opacity-50" />
+                  <p className="text-2xl mb-4">No players purchased yet</p>
+                  <p className="text-lg">Start bidding to build your squad!</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {myPlayers.map((playerData) => (
-                    <div key={playerData.player.id} className="bg-white/5 rounded-lg p-4">
-                      <div className="flex items-center space-x-3">
+                    <div
+                      key={playerData.player.id}
+                      className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-blue-400/50 transition-all duration-300 hover:scale-105 shadow-lg"
+                    >
+                      <div className="flex items-center space-x-4">
                         <img
                           src={playerData.player.image || "/placeholder.svg"}
                           alt={playerData.player.name}
-                          className="w-12 h-12 mx-auto rounded-full object-cover border-4 border-white/20"
+                          className="w-20 h-20 rounded-full object-cover border-4 border-blue-400/40 shadow-lg"
                         />
                         <div className="flex-1">
-                          <h3 className="text-white font-medium">{playerData.player.name}</h3>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant="secondary" className="bg-blue-600 text-white text-xs">
+                          <h3 className="text-white font-bold text-xl">{playerData.player.name}</h3>
+                          <div className="flex items-center space-x-2 mt-3">
+                            <Badge variant="secondary" className="bg-white/10 text-slate-100 text-sm md:text-sm">
                               {playerData.player.role}
                             </Badge>
-                            <span className="text-orange-400 font-bold text-sm">{formatPrice(playerData.price)}</span>
-                            <span className="text-green-400 font-bold text-sm">⭐{playerData.player.points}</span>
+                            <span className="text-blue-300 font-bold text-lg">{formatPrice(playerData.price)}</span>
+                            <span className="text-yellow-400 font-bold flex items-center space-x-1">
+                              <Sparkles className="w-4 h-4" />
+                              <span>{playerData.player.points}</span>
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -533,93 +565,118 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
                   ))}
                 </div>
               )}
-              <div className="mt-6 text-center">
-                <Button onClick={() => setShowMyTeam(false)} className="bg-orange-600 hover:bg-orange-700">
+              <div className="mt-10 text-center">
+                <Button
+                  onClick={() => setShowMyTeam(false)}
+                  className="bg-gradient-to-r from-blue-300 to-amber-300 hover:from-blue-400 hover:to-amber-400 text-white px-10 py-4 text-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-xl"
+                >
                   Back to Auction
                 </Button>
               </div>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid lg:grid-cols-4 gap-6">
+          <div className="grid lg:grid-cols-4 gap-8">
             <div className="lg:col-span-2">
-              <Card className="bg-white/10 backdrop-blur-md border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white text-center">Current Player</CardTitle>
+              <Card className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl animate-slide-up">
+                <CardHeader className="bg-gradient-to-r from-blue-300 to-amber-300 rounded-t-lg">
+                  <CardTitle className="text-white text-center text-3xl font-bold">Current Player</CardTitle>
                 </CardHeader>
-                <CardContent className="text-center">
-                  <div className="mb-6">
-                    <img
-                      src={currentPlayer.image || "/placeholder.svg"}
-                      alt={currentPlayer.name}
-                      className="w-56 h-56 mx-auto rounded-full object-cover border-4 border-white/20"
-                    />
-                    <h2 className="text-2xl font-bold text-white mt-4">{currentPlayer.name}</h2>
-                    <div className="flex items-center justify-center space-x-4 mt-2">
-                      <Badge variant="secondary" className="bg-blue-600 text-white">
+                <CardContent className="text-center p-10">
+                  <div className="mb-8">
+                    <div className="relative inline-block">
+                      <img
+                        src={currentPlayer.image || "/placeholder.svg"}
+                        alt={currentPlayer.name}
+                        className="w-44 h-44 mx-auto rounded-full object-cover border-4 border-blue-400/40 shadow-xl"
+                      />
+                      <div className="absolute -top-4 -right-4 bg-gradient-to-r from-blue-300 to-amber-300 text-white rounded-full p-3 shadow-lg">
+                        <Sparkles className="w-8 h-8" />
+                      </div>
+                    </div>
+                    <h2 className="text-xl md:text-2xl font-bold text-white mt-4 mb-3">{currentPlayer.name}</h2>
+                    <div className="flex items-center justify-center space-x-4 flex-wrap gap-3">
+                      <Badge
+                        variant="secondary"
+                        className="bg-white/10 text-slate-100 border border-white/20 px-3 py-1.5 text-xs md:text-sm"
+                      >
                         {currentPlayer.role}
                       </Badge>
-                      <Badge variant="secondary" className="bg-green-600 text-white">
+                      <Badge
+                        variant="secondary"
+                        className="bg-white/10 text-slate-100 border border-white/20 px-3 py-1.5 text-xs md:text-sm"
+                      >
                         {currentPlayer.nationality}
                       </Badge>
-                      <Badge variant="secondary" className="bg-purple-600 text-white">
+                      <Badge
+                        variant="secondary"
+                        className="bg-white/10 text-slate-100 border border-white/20 px-3 py-1.5 text-xs md:text-sm"
+                      >
                         {currentPlayer.category}
                       </Badge>
-                      <Badge variant="secondary" className="bg-yellow-600 text-white">
+                      <Badge
+                        variant="secondary"
+                        className="bg-white/10 text-slate-100 border border-white/20 px-3 py-1.5 text-xs md:text-sm font-bold"
+                      >
                         ⭐ {currentPlayer.points} pts
                       </Badge>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-3 gap-4 mb-8">
                     {Object.entries(currentPlayer.stats).map(([key, value]) => (
-                      <div key={key} className="text-center">
-                        <div className="text-2xl font-bold text-white">{value}</div>
-                        <div className="text-white/60 text-sm capitalize">{key.replace(/([A-Z])/g, " $1")}</div>
+                      <div key={key} className="text-center bg-white/5 rounded-lg p-4 border border-white/10">
+                        <div className="text-2xl font-bold text-blue-300">{String(value)}</div>
+                        <div className="text-white/80 text-sm capitalize mt-1">{key.replace(/([A-Z])/g, " $1")}</div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-4 bg-white/5 rounded-xl p-5 border border-white/10">
                     <div className="flex justify-between items-center">
-                      <span className="text-white/80">Base Price:</span>
-                      <span className="text-white font-bold">{formatPrice(currentPlayer.basePrice)}</span>
+                      <span className="text-white/70 font-medium text-sm md:text-base">Base Price:</span>
+                      <span className="text-white font-bold text-base md:text-lg">
+                        {formatPrice(currentPlayer.basePrice)}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-white/80">Current Bid:</span>
-                      <span className="text-2xl font-bold text-orange-400">{formatPrice(currentBid)}</span>
+                      <span className="text-white/70 font-medium text-sm md:text-base">Current Bid:</span>
+                      <span className="text-blue-300 font-bold text-base md:text-lg">{formatPrice(currentBid)}</span>
                     </div>
                     {highestBidder && (
                       <div className="flex justify-between items-center">
-                        <span className="text-white/80">Highest Bidder:</span>
-                        <div className="flex items-center space-x-2">
+                        <span className="text-white/70 font-medium text-sm md:text-base">Highest Bidder:</span>
+                        <div className="flex items-center space-x-4">
                           {teams.find((t) => t.id === highestBidder.team) && (
                             <img
                               src={teams.find((t) => t.id === highestBidder.team)?.logo || "/placeholder.svg"}
                               alt="Team"
-                              className="w-6 h-6 object-contain bg-white rounded-full p-1"
+                              className="w-10 h-10 object-contain bg-white rounded-full p-1 shadow-lg"
                             />
                           )}
-                          <span className="text-green-400 font-bold">{highestBidder.name}</span>
+                          <span className="text-blue-300 font-bold text-base md:text-lg">{highestBidder.name}</span>
                         </div>
                       </div>
                     )}
                   </div>
 
                   <div className="mt-6">
-                    <Progress value={((room.timeLeft ?? 0) / (room.highestBidder ? 10 : 15)) * 100} className="h-3" />
-                    <div className="text-white/60 text-sm mt-2">
+                    <Progress
+                      value={((room.timeLeft ?? 0) / (room.highestBidder ? 10 : 15)) * 100}
+                      className="h-2.5 bg-white/10"
+                    />
+                    <div className="text-white/70 text-sm mt-3">
                       {room.highestBidder ? "10 seconds for counter-bids" : "15 seconds initial timer"}
                     </div>
                   </div>
 
-                  <div className="mt-6 flex space-x-3">
+                  <div className="mt-5 flex gap-3">
                     <Button
                       onClick={handleBid}
                       disabled={loading || !userTeam}
-                      className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-600 text-white text-sm py-3 font-bold rounded-lg"
                     >
-                      {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Gavel className="w-4 h-4 mr-2" />}
+                      {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
                       Bid {formatPrice(nextBidAmount)}
                     </Button>
 
@@ -627,10 +684,8 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
                       <Button
                         onClick={handleQuitBid}
                         disabled={loading}
-                        variant="destructive"
-                        className="bg-red-600 hover:bg-red-700"
+                        className="bg-red-600 hover:bg-red-700 text-white py-3 px-6 rounded-lg"
                       >
-                        <X className="w-4 h-4 mr-2" />
                         Quit Bid
                       </Button>
                     )}
@@ -639,34 +694,43 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
               </Card>
             </div>
 
-            <div className="lg:col-span-2 space-y-6">
-              <Card className="bg-white/10 backdrop-blur-md border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white">Team Budgets</CardTitle>
+            <div className="lg:col-span-2 space-y-3">
+              <Card className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl animate-slide-up">
+                <CardHeader className="bg-gradient-to-r from-blue-300 to-amber-300 rounded-t-lg">
+                  <CardTitle className="text-white text-2xl font-bold">Team Budgets</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
+                <CardContent className="p-6">
+                  <div className="space-y-3">
                     {players.map((player) => {
                       const team = teams.find((t) => t.id === player.team)
                       const playerCount = Object.keys(player.players || {}).length
                       return (
-                        <div key={player.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                          <div className="flex items-center space-x-3">
+                        <div
+                          key={player.id}
+                          className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10 hover:border-blue-400/40 transition"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
                             {team && (
-                              <img
-                                src={team.logo || "/placeholder.svg"}
-                                alt={team.name}
-                                className="w-8 h-8 object-contain bg-white rounded-full p-1"
-                              />
+                              <div className="w-10 h-10 rounded-full bg-white grid place-items-center">
+                                <img
+                                  src={team.logo || "/placeholder.svg"}
+                                  alt={team.name}
+                                  className="w-8 h-8 object-contain"
+                                />
+                              </div>
                             )}
-                            <div>
-                              <span className="text-white font-medium">{player.name}</span>
-                              <div className="text-white/60 text-sm">{team?.name}</div>
+                            <div className="min-w-0">
+                              <span className="text-white font-semibold text-sm md:text-base truncate">
+                                {player.name}
+                              </span>
+                              <div className="text-white/70 text-xs md:text-sm">{team?.name}</div>
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-white font-bold">{formatPrice(player.budget)}</div>
-                            <div className="text-white/60 text-sm">{playerCount}/25 players</div>
+                            <div className="text-blue-300 font-bold text-sm md:text-base">
+                              {formatPrice(player.budget)}
+                            </div>
+                            <div className="text-white/70 text-xs md:text-sm">{playerCount}/25 players</div>
                           </div>
                         </div>
                       )
@@ -675,14 +739,14 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
                 </CardContent>
               </Card>
 
-              <Card className="bg-white/10 backdrop-blur-md border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center">
-                    <TrendingUp className="w-5 h-5 mr-2" />
+              <Card className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl animate-slide-up">
+                <CardHeader className="bg-gradient-to-r from-blue-300 to-amber-300 rounded-t-lg">
+                  <CardTitle className="text-white flex items-center text-2xl font-bold">
+                    <TrendingUp className="w-8 h-8 mr-4 text-blue-300" />
                     Live Leaderboard
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-6">
                   <div className="space-y-3">
                     {players
                       .sort((a, b) => {
@@ -699,31 +763,49 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
                       .map((player, index) => {
                         const team = teams.find((t) => t.id === player.team)
                         const playerCount = Object.keys(player.players || {}).length
-                        const spent = 12000 - player.budget // Updated for 120 Cr budget
+                        const spent = 12000 - player.budget
                         const totalPoints = Object.values(player.players || {}).reduce(
                           (sum, p) => sum + (p.player.points || 0),
                           0,
                         )
                         return (
-                          <div key={player.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                            <div className="flex items-center space-x-3">
-                              <Badge variant="secondary" className="bg-orange-600 text-white">
+                          <div
+                            key={player.id}
+                            className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10 hover:border-blue-400/40 transition"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Badge
+                                variant="secondary"
+                                className={`font-bold px-3 py-1 text-xs md:text-sm ${
+                                  index === 0
+                                    ? "bg-yellow-400 text-black"
+                                    : index === 1
+                                      ? "bg-gray-300 text-black"
+                                      : index === 2
+                                        ? "bg-amber-500 text-white"
+                                        : "bg-blue-500/20 text-blue-200"
+                                }`}
+                              >
                                 #{index + 1}
                               </Badge>
                               {team && (
-                                <img
-                                  src={team.logo || "/placeholder.svg"}
-                                  alt={team.name}
-                                  className="w-6 h-6 object-contain bg-white rounded-full p-1"
-                                />
+                                <div className="w-8 h-8 rounded-full bg-white grid place-items-center">
+                                  <img
+                                    src={team.logo || "/placeholder.svg"}
+                                    alt={team.name}
+                                    className="w-6 h-6 object-contain"
+                                  />
+                                </div>
                               )}
-                              <span className="text-white text-sm">{player.name}</span>
+                              <span className="text-white font-medium text-sm md:text-base truncate">
+                                {player.name}
+                              </span>
                             </div>
                             <div className="text-right">
-                              <div className="text-white text-sm">
+                              <div className="text-blue-300 font-bold text-sm md:text-base">
                                 {totalPoints} pts • {playerCount} players
                               </div>
-                              <div className="text-white/60 text-xs">{formatPrice(spent)} spent</div>
+                              <div className="text-white/70 text-xs md:text-sm">{formatPrice(spent)} spent</div>
                             </div>
                           </div>
                         )
@@ -739,9 +821,44 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
   )
 }
 
-const formatPrice = (price: number) => {
-  if (price >= 100) {
-    return `₹${(price / 100).toFixed(1)} Cr`
+const getBiddingIncrement = (currentBid: number): number => {
+  if (currentBid <= 100) return 5 // Up to ₹1 crore: +₹5 lakh
+  if (currentBid <= 200) return 10 // ₹1-2 crore: +₹10 lakh
+  if (currentBid <= 500) return 20 // ₹2-5 crore: +₹20 lakh
+  return 25 // ₹5+ crore: +₹25 lakh
+}
+
+const getCurrentPlayer = (room: GameRoom | null): any => {
+  if (!room) return null
+
+  const phase = room.auctionPhase || "batsman"
+  const index = room.playerIndex || 0
+
+  let playersInPhase = []
+
+  switch (phase) {
+    case "batsman":
+      playersInPhase = playersDatabase.filter((p) => p.role === "Batsman")
+      break
+    case "bowler":
+      playersInPhase = playersDatabase.filter((p) => p.role === "Bowler")
+      break
+    case "all-rounder":
+      playersInPhase = playersDatabase.filter((p) => p.role === "All-Rounder")
+      break
+    case "wicket-keeper":
+      playersInPhase = playersDatabase.filter((p) => p.role === "Wicket-Keeper")
+      break
+    case "uncapped":
+      playersInPhase = playersDatabase.filter((p) => p.category === "Uncapped")
+      break
+    default:
+      playersInPhase = playersDatabase
   }
-  return `₹${price} L`
+
+  return playersInPhase[index] || null
+}
+
+function toggleXI(id: string, set: React.Dispatch<React.SetStateAction<string[]>>) {
+  set((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(0, 11)))
 }

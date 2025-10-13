@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Plus, Users, Loader2, Wifi } from "lucide-react"
 import { gameService, teams } from "@/lib/game-service"
 import { useToast } from "@/hooks/use-toast"
+import Silk from './Silk';
 
 interface HomePageProps {
   user: any
@@ -67,6 +68,15 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom }: HomePagePro
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="absolute -top-24 -left-24 w-[480px] h-[480px] rounded-full bg-blue-600/20 blur-3xl" />
         <div className="absolute -bottom-24 -right-24 w-[520px] h-[520px] rounded-full bg-amber-500/20 blur-3xl" />
+        
+        {/* Added Light component for background */}
+<Silk
+      speed={20}
+      scale={0.9}
+      color="#68188DFF"
+      noiseIntensity={0.5}
+      rotation={4}
+  />
       </div>
 
       {/* header */}
@@ -86,7 +96,7 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom }: HomePagePro
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8 md:py-12">
+      <main className="max-w-5xl mx-auto px-4 py-8 md:py-12 relative z-10">
         {/* hero */}
         <section className="text-center mb-8 md:mb-10">
           <h2 className="text-balance text-2xl md:text-4xl font-black tracking-tight">

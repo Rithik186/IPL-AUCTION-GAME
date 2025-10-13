@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { Mail, Lock, User, Apple, Loader2, Eye, EyeOff, Shield } from "lucide-react"
 import { auth } from "@/lib/firebase"
+import Prism from "@/components/Prism" // Added Prism import
+
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -128,13 +130,22 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white relative overflow-hidden p-4">
-      {/* Animated background elements */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 z-0">
-        <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 rounded-full bg-blue-600/10 blur-3xl animate-blob-1" />
-        <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 rounded-full bg-amber-500/10 blur-3xl animate-blob-2" />
-        <div className="absolute top-1/4 right-1/4 w-1/4 h-1/4 rounded-full bg-purple-600/10 blur-3xl animate-blob-3" />
+    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white relative overflow-hidden p-4">
+      {/* New Prism background */}
+      <div className="absolute inset-0 -z-10">
+        <Prism
+            animationType="rotate"
+            timeScale={0.5}
+            scale={3.6}
+            height={3.5}
+            baseWidth={5.5}
+            noise={0}
+            glow={0.3}
+            hueShift={-0.44}
+            colorFrequency={0.5}
+        />
       </div>
+
 
       <div className="relative z-10 w-full max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 items-center">
         {/* hero */}

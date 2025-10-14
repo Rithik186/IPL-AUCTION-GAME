@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { Mail, Lock, User, Apple, Loader2, Eye, EyeOff, Shield } from "lucide-react"
 import { auth } from "@/lib/firebase"
-import Prism from "@/components/Prism" // Added Prism import
+import Prism from "./Prism"
 
 import {
   signInWithEmailAndPassword,
@@ -130,23 +130,23 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white relative overflow-hidden p-4">
-      {/* New Prism background */}
-      <div className="absolute inset-0 -z-10">
+    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white relative p-4 overflow-hidden">
+      {/* Background Prism Component */}
+      <div className="absolute inset-0 z-0">
         <Prism
-            animationType="rotate"
-            timeScale={0.5}
-            scale={3.6}
-            height={3.5}
-            baseWidth={5.5}
-            noise={0}
-            glow={0.3}
-            hueShift={-0.44}
-            colorFrequency={0.5}
+          animationType="rotate"
+          timeScale={0.5}
+          scale={3.6}
+          height={3.5}
+          baseWidth={5.5}
+          noise={0}
+          glow={0.3}
+          hueShift={-0.44}
+          colorFrequency={0.5}
         />
       </div>
 
-
+      {/* Foreground Content */}
       <div className="relative z-10 w-full max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 items-center">
         {/* hero */}
         <div className="hidden lg:block text-center lg:text-left">
@@ -315,10 +315,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                             passwordScore <= 1
                               ? "bg-red-500 w-1/4"
                               : passwordScore === 2
-                                ? "bg-yellow-500 w-2/4"
-                                : passwordScore === 3
-                                  ? "bg-blue-500 w-3/4"
-                                  : "bg-emerald-500 w-full"
+                              ? "bg-yellow-500 w-2/4"
+                              : passwordScore === 3
+                              ? "bg-blue-500 w-3/4"
+                              : "bg-emerald-500 w-full"
                           }`}
                         />
                       </div>

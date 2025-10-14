@@ -1,9 +1,9 @@
 /* eslint-disable react/no-unknown-property */
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { forwardRef, useRef, useMemo, useLayoutEffect } from 'react';
-import { Color } from 'three';
+import { forwardRef, useRef, useMemo, useLayoutEffect, useEffect } from 'react';
+import { Color, Mesh, ShaderMaterial } from 'three';
 
-const hexToNormalizedRGB = hex => {
+const hexToNormalizedRGB = (hex: string): [number, number, number] => {
   hex = hex.replace('#', '');
   return [
     parseInt(hex.slice(0, 2), 16) / 255,
@@ -69,17 +69,23 @@ void main() {
 }
 `;
 
-const SilkPlane = forwardRef(function SilkPlane({ uniforms }, ref) {
+interface SilkPlaneProps {
+  uniforms: any;
+}
+
+const SilkPlane = forwardRef<Mesh, SilkPlaneProps>(function SilkPlane({ uniforms }, ref) {
   const { viewport } = useThree();
 
   useLayoutEffect(() => {
-    if (ref.current) {
+    if (ref && 'current' in ref && ref.current) {
       ref.current.scale.set(viewport.width, viewport.height, 1);
     }
   }, [ref, viewport]);
 
   useFrame((_, delta) => {
-    ref.current.material.uniforms.uTime.value += 0.1 * delta;
+    if (ref && 'current' in ref && ref.current) {
+      (ref.current.material as ShaderMaterial).uniforms.uTime.value += 0.1 * delta;
+    }
   });
 
   return (
@@ -91,8 +97,16 @@ const SilkPlane = forwardRef(function SilkPlane({ uniforms }, ref) {
 });
 SilkPlane.displayName = 'SilkPlane';
 
-const Silk = ({ speed = 5, scale = 1, color = '#7B7481', noiseIntensity = 1.5, rotation = 0 }) => {
-  const meshRef = useRef();
+interface SilkProps {
+  speed?: number;
+  scale?: number;
+  color?: string;
+  noiseIntensity?: number;
+  rotation?: number;
+}
+
+const Silk = ({ speed = 5, scale = 1, color = '#7B7481', noiseIntensity = 1.5, rotation = 0 }: SilkProps) => {
+  const meshRef = useRef<Mesh>(null!);
 
   const uniforms = useMemo(
     () => ({
@@ -103,8 +117,14 @@ const Silk = ({ speed = 5, scale = 1, color = '#7B7481', noiseIntensity = 1.5, r
       uRotation: { value: rotation },
       uTime: { value: 0 }
     }),
-    [speed, scale, noiseIntensity, color, rotation]
+    [speed, scale, noiseIntensity, rotation]
   );
+
+  useEffect(() => {
+    if (meshRef.current) {
+      (meshRef.current.material as ShaderMaterial).uniforms.uColor.value.set(new Color(...hexToNormalizedRGB(color)));
+    }
+  }, [color]);
 
   return (
     <Canvas dpr={[1, 2]} frameloop="always">

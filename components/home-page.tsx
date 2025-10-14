@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Plus, Users, Loader2, Wifi } from "lucide-react"
+import { Plus, Users, Loader2, Wifi, Settings, LogOut, Palette } from "lucide-react"
 import { gameService, teams } from "@/lib/game-service"
 import { useToast } from "@/hooks/use-toast"
 import Silk from './Silk';
@@ -24,7 +25,16 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom }: HomePagePro
   const [loading, setLoading] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [joinDialogOpen, setJoinDialogOpen] = useState(false)
+  const [themeColor, setThemeColor] = useState("#250932FF")
   const { toast } = useToast()
+
+  const themes = [
+    { name: "Red", color: "#FF0000FF" },
+    { name: "Orange", color: "#FFA500FF" },
+    { name: "Golden Yellow", color: "#FFD700FF" },
+    { name: "Pink", color: "#FFC0CBFF" },
+    { name: "Default", color: "#250932FF" },
+  ]
 
   async function handleCreateRoom() {
     if (!roomName.trim()) {
@@ -73,7 +83,7 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom }: HomePagePro
 <Silk
       speed={20}
       scale={0.9}
-      color="#68188DFF"
+      color={themeColor}
       noiseIntensity={0.5}
       rotation={4}
   />
@@ -88,10 +98,51 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom }: HomePagePro
           </div>
           <div className="flex items-center gap-3 min-w-0">
             <span className="truncate max-w-[120px] md:max-w-none text-white/80">{user?.name}</span>
-            <Avatar className="ring-2 ring-blue-400/40">
-              <AvatarImage src={user?.avatar || "/placeholder.svg"} />
-              <AvatarFallback className="bg-blue-600 text-white">{user?.name?.[0] || "U"}</AvatarFallback>
-            </Avatar>
+            <Sheet>
+              <SheetTrigger asChild>
+                <button>
+                  <Avatar className="ring-2 ring-blue-400/40">
+                    <AvatarImage src={user?.avatar || "/placeholder.svg"} />
+                    <AvatarFallback className="bg-blue-600 text-white">{user?.name?.[0] || "U"}</AvatarFallback>
+                  </Avatar>
+                </button>
+              </SheetTrigger>
+              <SheetContent className="bg-slate-950/90 border-l border-white/10 text-white">
+                <SheetHeader>
+                  <SheetTitle className="text-white">Menu</SheetTitle>
+                </SheetHeader>
+                <div className="mt-6 space-y-4">
+                  <Button variant="ghost" className="w-full justify-start gap-2">
+                    <Settings className="h-5 w-5" />
+                    Settings
+                  </Button>
+                  <Button variant="ghost" className="w-full justify-start gap-2">
+                    <LogOut className="h-5 w-5" />
+                    Logout
+                  </Button>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 px-4">
+                      <Palette className="h-5 w-5" />
+                      <span>Themes</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 px-4">
+                      {themes.map((theme) => (
+                        <button
+                          key={theme.name}
+                          onClick={() => setThemeColor(theme.color)}
+                          className="h-8 w-8 rounded-full border-2"
+                          style={{
+                            backgroundColor: theme.color.slice(0, 7),
+                            borderColor: themeColor === theme.color ? "white" : "transparent",
+                          }}
+                          title={theme.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>

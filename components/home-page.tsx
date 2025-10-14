@@ -12,6 +12,7 @@ import { Plus, Users, Loader2, Wifi, Settings, LogOut, Palette } from "lucide-re
 import { gameService, teams } from "@/lib/game-service"
 import { useToast } from "@/hooks/use-toast"
 import Silk from './Silk';
+import TargetCursor from './TargetCursor';
 
 interface HomePageProps {
   user: any
@@ -76,6 +77,10 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom, onLogout, onG
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white relative overflow-hidden">
+      <TargetCursor 
+        spinDuration={2}
+        hideDefaultCursor={true}
+      />
       {/* background accents */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="absolute -top-24 -left-24 w-[480px] h-[480px] rounded-full bg-blue-600/20 blur-3xl" />
@@ -102,7 +107,7 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom, onLogout, onG
             <span className="truncate max-w-[120px] md:max-w-none text-white/80">{user?.name}</span>
             <Sheet>
               <SheetTrigger asChild>
-                <button>
+                <button className="cursor-target">
                   <Avatar className="ring-2 ring-blue-400/40">
                     <AvatarImage src={user?.avatar || "/placeholder.svg"} />
                     <AvatarFallback className="bg-blue-600 text-white">{user?.name?.[0] || "U"}</AvatarFallback>
@@ -170,7 +175,7 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom, onLogout, onG
           <CardContent className="overflow-hidden">
             <div className="flex overflow-x-auto py-4 space-x-6">
               {teams.map((team) => (
-                <div key={team.id} className="flex-shrink-0 group will-change-transform">
+                <div key={team.id} className="flex-shrink-0 group will-change-transform cursor-target">
                   <div className="w-24 h-24 md:w-28 md:h-28 rounded-xl bg-white/5 border border-white/10 grid place-items-center transition-all duration-300 ease-in-out group-hover:bg-white/15 group-hover:-translate-y-1 group-hover:shadow-2xl group-hover:shadow-blue-500/20">
                     <img
                       src={team.logo || "/placeholder.svg"}
@@ -187,7 +192,7 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom, onLogout, onG
         {/* actions */}
         <section className="grid md:grid-cols-2 gap-6 md:gap-8">
           {/* create */}
-          <Card className="bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10 transition">
+          <Card className="bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10 transition cursor-target">
             <CardContent className="p-5 md:p-6 text-center">
               <div className="mx-auto mb-5 md:mb-6 h-14 w-14 md:h-16 md:w-16 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 grid place-items-center">
                 <Plus className="h-7 w-7 md:h-8 md:w-8" />
@@ -232,7 +237,7 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom, onLogout, onG
           </Card>
 
           {/* join */}
-          <Card className="bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10 transition">
+          <Card className="bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10 transition cursor-target">
             <CardContent className="p-5 md:p-6 text-center">
               <div className="mx-auto mb-5 md:mb-6 h-14 w-14 md:h-16 md:w-16 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 grid place-items-center">
                 <Users className="h-7 w-7 md:h-8 md:w-8" />
@@ -281,7 +286,7 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom, onLogout, onG
         </section>
 
         {/* gallery */}
-        <Card className="mt-8 md:mt-10 bg-white/5 border border-white/10 backdrop-blur-xl hover:bg-white/10 transition">
+        <Card className="mt-8 md:mt-10 bg-white/5 border border-white/10 backdrop-blur-xl hover:bg-white/10 transition cursor-target">
           <CardContent className="p-5 md:p-6 text-center">
             <h3
               className="text-3xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-amber-200 to-blue-200 transition-all duration-300 hover:from-amber-300 hover:to-blue-300 hover:scale-105"

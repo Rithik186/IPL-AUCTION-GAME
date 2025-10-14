@@ -17,9 +17,11 @@ interface HomePageProps {
   user: any
   onCreateRoom: (roomData: any) => void
   onJoinRoom: (roomData: any) => void
+  onLogout: () => void
+  onGoToGallery: () => void
 }
 
-export default function HomePage({ user, onCreateRoom, onJoinRoom }: HomePageProps) {
+export default function HomePage({ user, onCreateRoom, onJoinRoom, onLogout, onGoToGallery }: HomePageProps) {
   const [roomName, setRoomName] = useState("")
   const [roomId, setRoomId] = useState("")
   const [loading, setLoading] = useState(false)
@@ -116,7 +118,7 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom }: HomePagePro
                     <Settings className="h-5 w-5" />
                     Settings
                   </Button>
-                  <Button variant="ghost" className="w-full justify-start gap-2">
+                  <Button variant="ghost" className="w-full justify-start gap-2" onClick={onLogout}>
                     <LogOut className="h-5 w-5" />
                     Logout
                   </Button>
@@ -278,19 +280,24 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom }: HomePagePro
           </Card>
         </section>
 
-        {/* nearby */}
-        <Card className="mt-8 md:mt-10 bg-white/5 border border-white/10 backdrop-blur-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-100">
-              <Wifi className="h-5 w-5 text-blue-400" />
-              Nearby Rooms
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center text-slate-300 py-8 md:py-10">
-              <p className="text-lg">No nearby rooms found</p>
-              <p className="text-sm text-slate-400">Create a room or join with an ID</p>
-            </div>
+        {/* gallery */}
+        <Card className="mt-8 md:mt-10 bg-white/5 border border-white/10 backdrop-blur-xl hover:bg-white/10 transition">
+          <CardContent className="p-5 md:p-6 text-center">
+            <h3
+              className="text-3xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-amber-200 to-blue-200 transition-all duration-300 hover:from-amber-300 hover:to-blue-300 hover:scale-105"
+              style={{ fontFamily: 'Orbitron, sans-serif' }}
+            >
+              IPL DOME GALLERY
+            </h3>
+            <p className="text-lg md:text-xl text-slate-200 mb-6 transition-colors duration-300 hover:text-white">
+              Explore the legends of the IPL
+            </p>
+            <Button
+              onClick={onGoToGallery}
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transform transition-all duration-300 hover:scale-105 text-lg"
+            >
+              Explore the Gallery
+            </Button>
           </CardContent>
         </Card>
       </main>

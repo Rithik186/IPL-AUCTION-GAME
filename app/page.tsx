@@ -9,10 +9,11 @@ import LoginPage from "@/components/login-page"
 import HomePage from "@/components/home-page"
 import GameLobby from "@/components/game-lobby"
 import AuctionGame from "@/components/auction-game"
+import DomeGallery from "@/components/DomeGallery"
 import { Toaster } from "@/components/toaster"
 
 export default function IPLAuctionApp() {
-  const [currentPage, setCurrentPage] = useState<"loading" | "login" | "home" | "lobby" | "game">("loading")
+  const [currentPage, setCurrentPage] = useState<"loading" | "login" | "home" | "lobby" | "game" | "gallery">("loading")
   const [user, setUser] = useState<any>(null)
   const [gameData, setGameData] = useState<any>(null)
 
@@ -44,6 +45,11 @@ export default function IPLAuctionApp() {
     setCurrentPage("home")
   }
 
+  const handleLogout = () => {
+    auth.signOut()
+    setCurrentPage("login")
+  }
+
   const handleCreateRoom = (roomData: any) => {
     setGameData(roomData)
     setCurrentPage("lobby")
@@ -56,6 +62,10 @@ export default function IPLAuctionApp() {
 
   const handleStartGame = () => {
     setCurrentPage("game")
+  }
+
+  const handleGoToGallery = () => {
+    setCurrentPage("gallery")
   }
 
   if (currentPage === "loading") {
@@ -100,7 +110,13 @@ export default function IPLAuctionApp() {
   if (currentPage === "home") {
     return (
       <>
-        <HomePage user={user} onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} />
+        <HomePage
+          user={user}
+          onCreateRoom={handleCreateRoom}
+          onJoinRoom={handleJoinRoom}
+          onLogout={handleLogout}
+          onGoToGallery={handleGoToGallery}
+        />
         <Toaster />
       </>
     )
@@ -126,6 +142,14 @@ export default function IPLAuctionApp() {
         <AuctionGame gameData={gameData} user={user} onBack={() => setCurrentPage("lobby")} />
         <Toaster />
       </>
+    )
+  }
+
+  if (currentPage === "gallery") {
+    return (
+      <div style={{ width: '100vw', height: '100vh' }}>
+        <DomeGallery onBack={() => setCurrentPage("home")} />
+      </div>
     )
   }
 

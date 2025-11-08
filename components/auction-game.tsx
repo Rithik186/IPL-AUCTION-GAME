@@ -264,6 +264,47 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
     setLoading(false)
   }
 
+  const handleSkipPlayer = async () => {
+    if (!room || room.hostId !== user.id || !currentPlayer) return
+
+    setLoading(true)
+    try {
+      await gameService.skipPlayer(gameData.id)
+      toast({
+        title: "Player Skipped",
+        description: `${currentPlayer.name} has been skipped.`,
+      })
+    } catch (error: any) {
+      toast({
+        title: "Skip Failed",
+        description: error.message,
+        variant: "destructive",
+      })
+    }
+    setLoading(false)
+  }
+
+  const handleClearRoomData = async () => {
+    if (!room || room.hostId !== user.id) return;
+
+    setLoading(true);
+    try {
+      await gameService.clearCompletedRoomData(gameData.id, user.id);
+      toast({
+        title: "Room Data Cleared",
+        description: "All game data for this room has been deleted.",
+      });
+      onBack(); // Go back to home page after clearing data
+    } catch (error: any) {
+      toast({
+        title: "Clear Data Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+    setLoading(false);
+  };
+
   const getUserTeam = () => {
     if (!room) return null
     const userPlayer = room.players[user.id]
@@ -382,13 +423,22 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
                   </div>
                 ))}
               </div>
-              <div className="mt-10 text-center">
+              <div className="mt-10 text-center space-y-4">
                 <Button
                   onClick={onBack}
                   className="bg-gradient-to-r from-blue-300 to-amber-300 hover:from-blue-400 hover:to-amber-400 text-white px-12 py-4 text-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-xl"
                 >
                   Back to Home
                 </Button>
+                {isHost && (
+                  <Button
+                    onClick={handleClearRoomData}
+                    disabled={loading}
+                    className="ml-4 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-12 py-4 text-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-xl"
+                  >
+                    Clear Room Data
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -780,6 +830,18 @@ export default function AuctionGame({ gameData, user, onBack }: AuctionGameProps
                       </Button>
                     )}
                   </div>
+
+                  {isHost && (
+                    <div className="mt-3">
+                      <Button
+                        onClick={handleSkipPlayer}
+                        disabled={loading}
+                        className="w-full bg-gray-600 hover:bg-gray-700 text-white text-sm py-3 font-bold rounded-lg"
+                      >
+                        Skip Player
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

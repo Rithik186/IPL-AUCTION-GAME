@@ -248,29 +248,32 @@ export default function ChatRoom({ roomId, userId, userName, onBack }: ChatRoomP
       </div>
 
       {/* Header */}
-      <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 p-3 shadow-lg flex items-center justify-between">
-        <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10">
-          <ArrowLeft className="w-5 h-5" />
-          <span className="ml-2">Back to Game</span>
-        </Button>
+      <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 p-3 shadow-lg flex items-center justify-center relative">
         <div className="flex items-center space-x-2">
           <MessageCircle className="w-6 h-6 text-blue-300" />
           <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-300 to-amber-300 bg-clip-text text-transparent">
             Chat Room
           </h1>
         </div>
-        <Badge variant="secondary" className="bg-white/10 text-white/80 border-white/20 px-3 py-1.5">
+        <Badge variant="secondary" className="bg-white/10 text-white/80 border-white/20 px-3 py-1.5 absolute right-4">
           {messages.filter((m) => m.type !== "system").length} messages
         </Badge>
       </div>
-
       {/* Chat Container */}
       <div className="max-w-4xl mx-auto p-4 h-[calc(100vh-80px)] flex flex-col">
         <Card className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl h-full flex flex-col overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-purple-500/20 to-orange-500/20 rounded-t-lg flex-shrink-0 p-4">
+          <CardHeader className="bg-gradient-to-r from-purple-500/20 to-orange-500/20 rounded-t-lg flex-shrink-0 p-4 flex flex-row items-center">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onBack}
+              className="bg-white/10 hover:bg-white/20 text-white rounded-full h-10 px-4 mr-2 flex items-center justify-center"
+            >
+              <ArrowLeft className="w-5 h-5 mr-1" />
+              Back
+            </Button>
             <CardTitle className="text-white text-lg font-bold">Live Chat • Room {roomId.slice(-6)}</CardTitle>
           </CardHeader>
-
           <CardContent className="flex-1 flex flex-col p-0 min-w-0 overflow-hidden">
             {/* Messages Area */}
             <ScrollArea className="flex-1 p-4 min-w-0 overflow-y-auto">

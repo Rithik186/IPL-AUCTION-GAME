@@ -279,8 +279,7 @@ class GameService {
     });
 
     const initialPlayerId = shuffledPhasePlayers[initialPhase]?.[0];
-    const foundPlayer = initialPlayerId ? playersDatabase.find(p => p.id === initialPlayerId) : undefined;
-    const initialPlayer = foundPlayer === undefined ? null : foundPlayer;
+    const foundPlayer = initialPlayerId ? playersDatabase.find(p => p.id === initialPlayerId) : null; // Explicitly set to null if not found
 
     return update(ref(database, `rooms/${roomId}`), {
       status: "auction",
@@ -288,8 +287,8 @@ class GameService {
       auctionMode: "traditional", // Default to traditional unless host switches
       playerIndex: 0,
       timeLeft: 15,
-      currentPlayer: initialPlayer,
-      currentBid: initialPlayer?.basePrice || 0,
+      currentPlayer: foundPlayer,
+      currentBid: foundPlayer?.basePrice || 0,
       highestBidder: null,
       soldPlayers: {},
       unsoldPlayers: [],
@@ -647,6 +646,100 @@ class GameService {
 
   deleteRoom(roomId: string): Promise<void> {
     return remove(ref(database, `rooms/${roomId}`))
+  }
+
+  clearCompletedRoomData(roomId: string, hostId: string): Promise<void> {
+    const roomRef = ref(database, `rooms/${roomId}`)
+    return new Promise((resolve, reject) => {
+      onValue(roomRef, (snapshot) => {
+        const room = snapshot.val() as GameRoom
+        if (!room) {
+          reject(new Error("Room not found"))
+          return
+        }
+        if (room.hostId !== hostId) {
+          reject(new Error("Only host can clear room data"))
+          return
+        }
+        if (room.status !== "completed") {
+          reject(new Error("Room is not completed yet"))
+          return
+        }
+        remove(roomRef)
+          .then(() => resolve())
+          .catch(reject)
+      }, { onlyOnce: true })
+    })
+  }
+
+  skipPlayer(roomId: string): Promise<void> {
+    const roomRef = ref(database, `rooms/${roomId}`)
+
+    return new Promise((resolve, reject) => {
+      onValue(
+        roomRef,
+        (snapshot) => {
+          const room = snapshot.val() as GameRoom
+          if (!room || !room.currentPlayer) {
+            reject(new Error("No current player to skip"))
+            return
+          }
+
+          const unsoldPlayers = room.unsoldPlayers || []
+          unsoldPlayers.push(room.currentPlayer.id)
+
+          const currentPlayerIndex = room.playerIndex || 0
+          const nextIndex = currentPlayerIndex + 1
+          const currentPhase: AuctionPhase = (room.auctionPhase as AuctionPhase) || "batsman"
+
+          let nextPlayer = this.getCurrentPlayer(room, currentPhase, nextIndex)
+          let nextPhase: AuctionPhase = currentPhase
+
+          const isFast = room.auctionMode === "fast"
+          if (isFast) {
+            nextPlayer = this.getRandomNextPlayer(room)
+            nextPhase = currentPhase // phase label becomes irrelevant in fast mode
+          } else if (!nextPlayer) {
+            const newPhase = this.getNextPhase(currentPhase)
+            if (newPhase) {
+              nextPhase = newPhase
+              nextPlayer = this.getCurrentPlayer(room, newPhase, 0)
+            } else {
+              const finalLeaderboard = this.calculateFinalLeaderboard(room.players)
+              update(ref(database, `rooms/${roomId}`), {
+                status: "completed",
+                unsoldPlayers,
+                finalLeaderboard,
+              })
+                .then(() => resolve())
+                .catch(reject)
+              return
+            }
+          }
+
+          update(ref(database, `rooms/${roomId}`), {
+            playerIndex: isFast
+              ? (room.playerIndex || 0) + 1
+              : nextPlayer
+                ? nextPhase === currentPhase
+                  ? nextIndex
+                  : 0
+                : currentPlayerIndex,
+            auctionPhase: nextPhase,
+            currentPlayer: nextPlayer,
+            currentBid: nextPlayer?.basePrice || 0,
+            timeLeft: 15,
+            highestBidder: null,
+            unsoldPlayers,
+            biddingWar: null,
+            quitBidders: [],
+          })
+            .then(() => resolve())
+            .catch(reject)
+        },
+        { onlyOnce: true },
+      )
+    })
   }
 
   setAuctionMode(roomId: string, mode: "traditional" | "fast"): Promise<void> {

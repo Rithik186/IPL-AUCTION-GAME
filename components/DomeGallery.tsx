@@ -129,7 +129,7 @@ export default function DomeGallery({
   maxVerticalRotationDeg = DEFAULTS.maxVerticalRotationDeg,
   dragSensitivity = DEFAULTS.dragSensitivity,
   enlargeTransitionMs = DEFAULTS.enlargeTransitionMs,
-  segments = 28,
+  segments = 25,
   dragDampening = 5,
   openedImageWidth = '250px',
   openedImageHeight = '350px',

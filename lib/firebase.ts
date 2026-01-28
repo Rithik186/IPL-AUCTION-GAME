@@ -4,14 +4,14 @@ import { getDatabase } from "firebase/database"
 import { getAnalytics } from "firebase/analytics"
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCa7DTCASwGqNMTNBt7X7XozYcu5MtU7fA",
-  authDomain: "sendora-9e14f.firebaseapp.com",
-  databaseURL: "https://sendora-9e14f-default-rtdb.firebaseio.com",
-  projectId: "sendora-9e14f",
-  storageBucket: "sendora-9e14f.appspot.com",
-  messagingSenderId: "844599229027",
-  appId: "1:844599229027:web:d84914f9efe44a260dd656",
-  measurementId: "G-9FYBEJNY7K",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: "",
+  measurementId: "",
 }
 
 // Initialize Firebase

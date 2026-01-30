@@ -51,15 +51,9 @@ export default function ChatRoom({ roomId, userId, userName, onBack }: ChatRoomP
       setTypingUsers(users.filter((user: TypingUser) => user.userId !== userId))
     })
 
-    // Send welcome message
-    chatService.sendSystemMessage(roomId, `${userName} joined the chat`)
-
     return () => {
       unsubscribeMessages()
       unsubscribeTyping()
-
-      // Send leave message
-      chatService.sendSystemMessage(roomId, `${userName} left the chat`)
 
       // Clear typing status
       if (isTyping) {
@@ -143,8 +137,7 @@ export default function ChatRoom({ roomId, userId, userName, onBack }: ChatRoomP
       const data = await response.json()
       setGifs(data.data)
     } catch (error) {
-      console.error("Failed to fetch GIFs", error)
-      // Mock data for UI development without an API key
+      // Mock data
       setGifs([
         {
           id: "1",
@@ -186,53 +179,56 @@ export default function ChatRoom({ roomId, userId, userName, onBack }: ChatRoomP
 
   const renderMessage = (message: ChatMessage) => {
     const isOwnMessage = message.userId === userId
-    const isSystemMessage = message.type === "system"
 
-    if (isSystemMessage) {
-      return (
-        <div key={message.id} className="text-center my-4">
-          <Badge variant="secondary" className="bg-white/10 text-white/70 text-sm">
-            {message.text}
-          </Badge>
-        </div>
-      )
+    // Skip system messages about joining/leaving
+    if (message.type === "system") {
+      return null
     }
 
     return (
-      <div key={message.id} className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} mb-4 min-w-0`}>
+      <div key={message.id} className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} mb-3 min-w-0 group`}>
+        {!isOwnMessage && (
+          <div className="flex-shrink-0 mr-2 flex items-end">
+            <div className="relative">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-[10px] font-bold text-white uppercase border border-white/20">
+                {message.username.substring(0, 1)}
+              </div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-black shadow-[0_0_5px_rgba(34,197,94,0.8)]"></div>
+            </div>
+          </div>
+        )}
         <div
-          className={`max-w-[85%] sm:max-w-[75%] md:max-w-[65%] px-4 py-3 rounded-2xl break-words whitespace-pre-wrap leading-relaxed ${
-            isOwnMessage
-              ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white"
-              : "bg-white/10 backdrop-blur-sm text-white border border-white/20"
-          }`}
+          className={`relative max-w-[85%] px-3 py-2 rounded-2xl break-words text-sm ${isOwnMessage
+            ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/20"
+            : "bg-[#1E2030] text-gray-100 border border-white/10 shadow-lg"
+            }`}
         >
-          {!isOwnMessage && <div className="text-xs text-white/70 mb-1 font-medium truncate">{message.username}</div>}
-          <div className="text-sm">
+          {!isOwnMessage && <div className="text-[10px] text-cyan-400 mb-0.5 font-bold tracking-wide uppercase opacity-80">{message.username}</div>}
+          <div className="leading-snug">
             {message.text.startsWith("!gif[") && message.text.endsWith("]") ? (
               <img
                 src={message.text.substring(5, message.text.length - 1)}
                 alt="gif"
-                className="mt-2 rounded-lg max-w-full h-auto"
+                className="mt-1 rounded-lg max-w-full h-auto border border-white/10"
               />
             ) : (
               message.text.split(/(@\w+)/).map((part: string, index: number) => {
                 if (part.startsWith("@")) {
                   return (
-                    <span key={index} className="text-yellow-300 font-bold break-words">
+                    <span key={index} className="text-yellow-400 font-bold bg-yellow-400/10 rounded px-1">
                       {part}
                     </span>
                   )
                 }
                 return (
-                  <span key={index} className="break-words">
+                  <span key={index}>
                     {part}
                   </span>
                 )
               })
             )}
           </div>
-          <div className={`text-[11px] mt-1 ${isOwnMessage ? "text-white/70" : "text-white/50"}`}>
+          <div className={`text-[9px] mt-1 text-right ${isOwnMessage ? "text-white/60" : "text-white/40"}`}>
             {formatTime(message.timestamp)}
           </div>
         </div>
@@ -241,172 +237,137 @@ export default function ChatRoom({ roomId, userId, userName, onBack }: ChatRoomP
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-24 -left-24 w-[320px] h-[320px] rounded-full bg-blue-600/15 blur-3xl" />
-        <div className="absolute -bottom-24 -right-24 w-[360px] h-[360px] rounded-full bg-amber-500/15 blur-3xl" />
-      </div>
+    <div className="flex flex-col h-full bg-[#0F111A] border-l border-white/10 relative overflow-hidden">
 
       {/* Header */}
-      <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 p-3 shadow-lg flex items-center justify-center relative">
+      <div className="bg-[#151725] border-b border-white/10 p-3 flex items-center justify-between shadow-xl z-10">
         <div className="flex items-center space-x-2">
-          <MessageCircle className="w-6 h-6 text-blue-300" />
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-300 to-amber-300 bg-clip-text text-transparent">
-            Chat Room
-          </h1>
+          <div className="p-1.5 bg-indigo-500/20 rounded-lg">
+            <MessageCircle className="w-4 h-4 text-indigo-400" />
+          </div>
+          <span className="text-sm font-bold text-white tracking-wide">Live Chat</span>
         </div>
-        <Badge variant="secondary" className="bg-white/10 text-white/80 border-white/20 px-3 py-1.5 absolute right-4">
-          {messages.filter((m) => m.type !== "system").length} messages
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="bg-transparent text-emerald-400 border-emerald-500/30 text-[10px] px-2 py-0.5 h-5 flex items-center gap-1">
+            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+            LIVE
+          </Badge>
+          <Button variant="ghost" size="icon" onClick={onBack} className="h-6 w-6 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </Button>
+        </div>
       </div>
-      {/* Chat Container */}
-      <div className="max-w-4xl mx-auto p-4 h-[calc(100vh-80px)] flex flex-col">
-        <Card className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl h-full flex flex-col overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-purple-500/20 to-orange-500/20 rounded-t-lg flex-shrink-0 p-4 flex flex-row items-center">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onBack}
-              className="bg-white/10 hover:bg-white/20 text-white rounded-full h-10 px-4 mr-2 flex items-center justify-center"
-            >
-              <ArrowLeft className="w-5 h-5 mr-1" />
-              Back
-            </Button>
-            <CardTitle className="text-white text-lg font-bold">Live Chat • Room {roomId.slice(-6)}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col p-0 min-w-0 overflow-hidden">
-            {/* Messages Area */}
-            <ScrollArea className="flex-1 p-4 min-w-0 overflow-y-auto">
-              <div className="space-y-2 min-w-0">
-                {messages.length === 0 ? (
-                  <div className="text-center text-white/60 py-16">
-                    <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <p className="text-xl mb-2">No messages yet</p>
-                    <p className="text-lg">Start the conversation!</p>
-                  </div>
-                ) : (
-                  messages.map(renderMessage)
-                )}
 
-                {/* Typing Indicator */}
-                {typingUsers.length > 0 && (
-                  <div className="flex justify-start mb-4">
-                    <div className="bg-white/10 backdrop-blur-sm text-white/70 px-4 py-2 rounded-2xl border border-white/20 text-sm">
-                      {typingUsers.map((user) => user.username).join(", ")}
-                      {typingUsers.length === 1 ? " is" : " are"} typing...
-                    </div>
-                  </div>
-                )}
+      {/* Messages Area */}
+      <ScrollArea className="flex-1 p-3 overflow-y-auto custom-scrollbar">
+        <div className="space-y-1 min-w-0 pb-2">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 text-white/30 space-y-2 mt-10">
+              <MessageCircle className="w-10 h-10 opacity-20" />
+              <p className="text-xs">No messages yet.</p>
+              <p className="text-[10px] uppercase tracking-wider font-semibold">Be the first to say hi!</p>
+            </div>
+          ) : (
+            messages.map(renderMessage)
+          )}
 
-                <div ref={messagesEndRef} />
+          {/* Typing Indicator */}
+          {typingUsers.length > 0 && (
+            <div className="flex items-center space-x-2 mt-2 ml-1">
+              <div className="flex space-x-1">
+                <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce"></div>
               </div>
-            </ScrollArea>
+              <span className="text-[10px] text-white/40 italic">
+                {typingUsers.length > 2 ? "Several people are typing..." : `${typingUsers.map(u => u.username).join(", ")} is typing...`}
+              </span>
+            </div>
+          )}
 
-            {/* Input Area */}
-            <div className="p-4 border-t border-white/10 bg-white/5 backdrop-blur-sm flex-shrink-0">
-              {/* Emoji Picker */}
-              {showEmojiPicker && (
-                <div className="mb-4 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                  <div className="grid grid-cols-6 gap-2">
-                    {EMOJI_LIST.map((emoji, index) => (
-                      <Button
-                        key={index}
-                        variant="ghost"
-                        size="sm"
-                        onMouseDown={() => handleEmojiMouseDown(emoji)}
-                        onMouseUp={handleEmojiMouseUp}
-                        onMouseLeave={handleEmojiMouseUp}
-                        className="text-2xl hover:bg-white/10 transition-all duration-300 hover:scale-110 active:scale-125"
-                      >
-                        {emoji}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
 
-              {/* GIF Picker */}
-              {showGifPicker && (
-                <div className="mb-4 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                  <Input
-                    value={gifSearchTerm}
-                    onChange={(e) => setGifSearchTerm(e.target.value)}
-                    placeholder="Search for GIFs"
-                    className="bg-white/10 border-white/20 text-white placeholder-white/50 mb-4"
-                  />
-                  <div className="grid grid-cols-3 gap-2 h-48 overflow-y-auto">
-                    {gifs.map((gif: any) => (
-                      <img
-                        key={gif.id}
-                        src={gif.images.fixed_height.url}
-                        alt="gif"
-                        onClick={() => handleGifClick(gif.images.fixed_height.url)}
-                        className="cursor-pointer rounded-md hover:border-2 hover:border-blue-400"
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center space-x-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowEmojiPicker(!showEmojiPicker)
-                    setShowGifPicker(false)
-                  }}
-                  className="text-white hover:bg-white/10"
-                >
-                  <Smile className="w-5 h-5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowGifPicker(!showGifPicker)
-                    setShowEmojiPicker(false)
-                  }}
-                  className="text-white hover:bg-white/10"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+      {/* Input Area */}
+      <div className="p-3 bg-[#151725] border-t border-white/10 z-10">
+        {/* Emoji/GIF Pickers Container - Positioning absolute to pop up */}
+        <div className="relative">
+          {showEmojiPicker && (
+            <div className="absolute bottom-12 left-0 w-full bg-[#1E2030] border border-white/10 rounded-xl shadow-2xl p-2 z-50">
+              <div className="grid grid-cols-6 gap-1">
+                {EMOJI_LIST.map((emoji, index) => (
+                  <button
+                    key={index}
+                    onMouseDown={() => handleEmojiMouseDown(emoji)}
+                    onMouseUp={handleEmojiMouseUp}
+                    onMouseLeave={handleEmojiMouseUp}
+                    className="p-1.5 hover:bg-white/10 rounded text-lg transition-colors"
                   >
-                    <path d="M10 16.5l-4-4 4-4" />
-                    <path d="M14 7.5l4 4-4 4" />
-                    <path d="M6 12h12" />
-                  </svg>
-                </Button>
-
-                <div className="flex-1 relative">
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => handleInputChange(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                    placeholder="Type a message... Use @username to mention someone"
-                    className="bg-white/10 border-white/20 text-white placeholder-white/50 focus:border-purple-400 focus:ring-purple-400/50 pr-12 py-3 text-lg rounded-xl backdrop-blur-sm break-words"
-                  />
-                </div>
-
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                  className="bg-gradient-to-r from-blue-600 to-amber-500 hover:from-blue-700 hover:to-amber-600 text-white px-5 py-2.5 rounded-xl"
-                >
-                  <Send className="w-5 h-5" />
-                </Button>
+                    {emoji}
+                  </button>
+                ))}
               </div>
             </div>
-          </CardContent>
-        </Card>
+          )}
+
+          {showGifPicker && (
+            <div className="absolute bottom-12 left-0 w-full bg-[#1E2030] border border-white/10 rounded-xl shadow-2xl p-2 z-50 h-56 flex flex-col">
+              <Input
+                value={gifSearchTerm}
+                onChange={(e) => setGifSearchTerm(e.target.value)}
+                placeholder="Search GIFs..."
+                className="h-8 bg-black/40 border-white/10 text-white text-xs mb-2 focus:ring-1 focus:ring-indigo-500"
+              />
+              <div className="grid grid-cols-3 gap-1 overflow-y-auto flex-1 no-scrollbar">
+                {gifs.map((gif: any) => (
+                  <img
+                    key={gif.id}
+                    src={gif.images.fixed_height.url}
+                    alt="gif"
+                    onClick={() => handleGifClick(gif.images.fixed_height.url)}
+                    className="w-full h-16 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-end gap-2">
+          <div className="flex-1 bg-black/30 rounded-xl border border-white/10 flex items-center p-1 focus-within:border-indigo-500/50 transition-colors">
+            <button
+              onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowGifPicker(false); }}
+              className={`p-2 rounded-lg text-white/50 hover:text-indigo-400 hover:bg-white/5 transition-colors ${showEmojiPicker ? "text-indigo-400 bg-white/5" : ""}`}
+            >
+              <Smile className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => { setShowGifPicker(!showGifPicker); setShowEmojiPicker(false); }}
+              className={`p-2 rounded-lg text-white/50 hover:text-pink-400 hover:bg-white/5 transition-colors ${showGifPicker ? "text-pink-400 bg-white/5" : ""}`}
+            >
+              <div className="text-[9px] font-black border border-current rounded px-0.5 leading-none">GIF</div>
+            </button>
+            <Input
+              value={newMessage}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+              placeholder="Type..."
+              className="flex-1 border-0 bg-transparent h-9 text-sm text-white focus-visible:ring-0 placeholder:text-white/30 px-2"
+            />
+          </div>
+          <Button
+            onClick={handleSendMessage}
+            disabled={!newMessage.trim()}
+            size="icon"
+            className="h-11 w-11 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-indigo-500/20 shrink-0"
+          >
+            <Send className="w-4 h-4 ml-0.5" />
+          </Button>
+        </div>
       </div>
     </div>
   )

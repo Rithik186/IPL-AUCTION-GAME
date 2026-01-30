@@ -46,7 +46,7 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom, onLogout, onG
     }
     setLoading(true)
     try {
-      const newRoomId = await gameService.createRoom(roomName, user.id, user.name, user.email)
+      const newRoomId = await gameService.createRoom(roomName, user.id, user.name, user.email, user.avatar)
       toast({ title: "Room Created", description: `Room "${roomName}" created successfully!` })
       onCreateRoom({ id: newRoomId, name: roomName, hostId: user.id })
       setCreateDialogOpen(false)
@@ -64,7 +64,7 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom, onLogout, onG
     }
     setLoading(true)
     try {
-      await gameService.joinRoom(roomId, user.id, user.name, user.email)
+      await gameService.joinRoom(roomId, user.id, user.name, user.email, user.avatar)
       toast({ title: "Joined Room", description: "Successfully joined the room!" })
       onJoinRoom({ id: roomId, name: "Joined Room" })
       setJoinDialogOpen(false)
@@ -77,7 +77,7 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom, onLogout, onG
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white relative overflow-hidden">
-      <TargetCursor 
+      <TargetCursor
         spinDuration={2}
         hideDefaultCursor={true}
       />
@@ -85,26 +85,41 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom, onLogout, onG
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="absolute -top-24 -left-24 w-[480px] h-[480px] rounded-full bg-blue-600/20 blur-3xl" />
         <div className="absolute -bottom-24 -right-24 w-[520px] h-[520px] rounded-full bg-amber-500/20 blur-3xl" />
-        
+
         {/* Added Light component for background */}
-<Silk
-      speed={20}
-      scale={0.9}
-      color={themeColor}
-      noiseIntensity={0.5}
-      rotation={4}
-  />
+        <Silk
+          speed={20}
+          scale={0.9}
+          color={themeColor}
+          noiseIntensity={0.5}
+          rotation={4}
+        />
       </div>
 
       {/* header */}
       <header className="sticky top-0 z-10 bg-white/5 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between min-w-0">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-amber-500 ring-2 ring-white/20" />
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={onLogout}
+              className="bg-red-500/10 hover:bg-red-550/20 text-red-400 border-red-500/30 hover:border-red-400/50 font-black px-4 py-1.5 h-auto rounded-full transition-all duration-300 group shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] hover:scale-105"
+            >
+              <LogOut className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+              <span className="text-[10px] tracking-[0.2em] font-black">LOGOUT</span>
+            </Button>
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-amber-500 ring-2 ring-white/20 hidden sm:block" />
             <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">IPL Auction</h1>
           </div>
           <div className="flex items-center gap-3 min-w-0">
-            <span className="truncate max-w-[120px] md:max-w-none text-white/80">{user?.name}</span>
+            <div className="flex flex-col items-end">
+              <span className="truncate max-w-[120px] md:max-w-none text-white/80 font-bold">{user?.name}</span>
+              {user?.isGuest && (
+                <span className="text-[10px] bg-white/10 text-white/60 px-1.5 py-0.5 rounded leading-none font-bold uppercase tracking-wider border border-white/5">
+                  Guest Mode
+                </span>
+              )}
+            </div>
             <Sheet>
               <SheetTrigger asChild>
                 <button className="cursor-target">
@@ -122,10 +137,6 @@ export default function HomePage({ user, onCreateRoom, onJoinRoom, onLogout, onG
                   <Button variant="ghost" className="w-full justify-start gap-2">
                     <Settings className="h-5 w-5" />
                     Settings
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start gap-2" onClick={onLogout}>
-                    <LogOut className="h-5 w-5" />
-                    Logout
                   </Button>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 px-4">

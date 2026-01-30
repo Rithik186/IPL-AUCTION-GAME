@@ -5,7 +5,18 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Crown, Users, Copy, Check, Loader2, MessageCircle } from "lucide-react"
+import { ArrowLeft, Crown, Users, Copy, Check, Loader2, MessageCircle, Share2, LogOut, Power } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { gameService, teams, type GameRoom } from "@/lib/game-service"
 import { useToast } from "@/hooks/use-toast"
 import ChatRoom from "@/components/chat-room"
@@ -45,6 +56,37 @@ export default function GameLobby({ gameData, user, onStartGame, onBack }: GameL
       title: "Room ID Copied",
       description: "Share this ID with your friends to join the room",
     })
+  }
+
+  const shareToWhatsapp = () => {
+    const text = `Join my IPL Auction Room! Room ID: ${gameData.id}`
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`
+    window.open(url, "_blank")
+  }
+
+  const handleExitRoom = async () => {
+    try {
+      await gameService.leaveRoom(gameData.id, user.id)
+      onBack()
+    } catch (error: any) {
+      toast({
+        title: "Failed to Leave Room",
+        description: error.message,
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleCloseRoom = async () => {
+    try {
+      await gameService.closeRoom(gameData.id)
+    } catch (error: any) {
+      toast({
+        title: "Failed to Close Room",
+        description: error.message,
+        variant: "destructive",
+      })
+    }
   }
 
   const handleTeamSelection = async (teamId: string) => {
@@ -118,7 +160,10 @@ export default function GameLobby({ gameData, user, onStartGame, onBack }: GameL
             <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/10">
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <h1 className="text-slate-50 text-lg md:text-xl font-extrabold tracking-tight">Game Lobby</h1>
+            <h1 className="text-slate-50 text-lg md:text-xl font-extrabold tracking-tight flex items-center gap-2">
+              Game Lobby <span className="text-slate-500 font-light">|</span>{" "}
+              <span className="text-amber-400">{room?.name || gameData.name}</span>
+            </h1>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -135,6 +180,54 @@ export default function GameLobby({ gameData, user, onStartGame, onBack }: GameL
             <Button variant="ghost" size="sm" onClick={copyRoomId} className="text-white hover:bg-white/10">
               {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={shareToWhatsapp}
+              className="text-white hover:bg-green-500/20 hover:text-green-400"
+              title="Share on WhatsApp"
+            >
+              <Share2 className="w-4 h-4" />
+            </Button>
+
+            {isHost ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-red-500/20 hover:text-red-400"
+                    title="Close Room"
+                  >
+                    <Power className="w-4 h-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-slate-900 border-white/10 text-white">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Close Room?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-slate-400">
+                      This will close the room for everyone. Are you sure?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/10 text-white hover:text-white">Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleCloseRoom} className="bg-red-600 hover:bg-red-700 text-white border-0">
+                      Close Room
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleExitRoom}
+                className="text-white hover:bg-red-500/20 hover:text-red-400"
+                title="Exit Room"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -156,13 +249,12 @@ export default function GameLobby({ gameData, user, onStartGame, onBack }: GameL
                     return (
                       <div
                         key={team.id}
-                        className={`group relative p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
-                          isSelected
-                            ? "border-amber-500 bg-amber-500/15 shadow-md"
-                            : isTaken
-                              ? "border-slate-700 bg-slate-800/30 opacity-60 cursor-not-allowed"
-                              : "border-white/10 bg-white/5 hover:bg-white/10 hover:-translate-y-0.5 hover:shadow-lg"
-                        }`}
+                        className={`group relative p-3 rounded-lg border cursor-pointer transition-all duration-200 ${isSelected
+                          ? "border-amber-500 bg-amber-500/15 shadow-md"
+                          : isTaken
+                            ? "border-slate-700 bg-slate-800/30 opacity-60 cursor-not-allowed"
+                            : "border-white/10 bg-white/5 hover:bg-white/10 hover:-translate-y-0.5 hover:shadow-lg"
+                          }`}
                         onClick={() => !isTaken && !loading && handleTeamSelection(team.id)}
                       >
                         <div className="text-center min-w-0">
@@ -211,7 +303,7 @@ export default function GameLobby({ gameData, user, onStartGame, onBack }: GameL
                         className="flex items-center gap-3 p-2.5 bg-white/5 rounded-md border border-white/10"
                       >
                         <Avatar className="ring-1 ring-blue-400/40">
-                          <AvatarImage src={player.avatar || "/placeholder.svg"} />
+                          <AvatarImage src={player.avatar} />
                           <AvatarFallback className="bg-blue-600 text-white font-bold">
                             {player.name.charAt(0)}
                           </AvatarFallback>
@@ -289,6 +381,23 @@ export default function GameLobby({ gameData, user, onStartGame, onBack }: GameL
           </div>
         </div>
       </div>
-    </div>
+
+
+      <AlertDialog open={room.status === "closed"}>
+        <AlertDialogContent className="bg-slate-900 border-white/10 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Room Closed</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              The Room has been closed by the host.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={onBack} className="bg-blue-600 hover:bg-blue-700 text-white border-0">
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div >
   )
 }

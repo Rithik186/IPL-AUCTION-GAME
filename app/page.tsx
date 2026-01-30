@@ -11,6 +11,7 @@ import GameLobby from "@/components/game-lobby"
 import AuctionGame from "@/components/auction-game"
 import DomeGallery from "@/components/DomeGallery"
 import { Toaster } from "@/components/toaster"
+import { gameService } from "@/lib/game-service"
 
 export default function IPLAuctionApp() {
   const [currentPage, setCurrentPage] = useState<"loading" | "login" | "home" | "lobby" | "game" | "gallery">("loading")
@@ -18,7 +19,7 @@ export default function IPLAuctionApp() {
   const [gameData, setGameData] = useState<any>(null)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser && firebaseUser.emailVerified) {
         setUser({
           id: firebaseUser.uid,
@@ -26,9 +27,80 @@ export default function IPLAuctionApp() {
           email: firebaseUser.email,
           avatar: firebaseUser.photoURL,
         })
-        setCurrentPage("home")
+
+        // Restore session if exists
+        const savedRoomId = localStorage.getItem("activeRoomId")
+        if (savedRoomId) {
+          try {
+            // We can't easily get the full room object check synchronously, 
+            // but we will optimistically set the gameData.
+            // Ideally we should fetch the room to check status.
+            // For now, let's just fetch it.
+            gameService.subscribeToRoom(savedRoomId, (room) => {
+              if (room) {
+                setGameData(room)
+                if (room.status === "auction" || room.status === "completed") {
+                  setCurrentPage("game")
+                } else if (room.status === "waiting" || room.status === "team-selection") {
+                  setCurrentPage("lobby")
+                } else {
+                  setCurrentPage("home")
+                  localStorage.removeItem("activeRoomId")
+                }
+              } else {
+                // Room might be deleted or invalid
+                setCurrentPage("home")
+                localStorage.removeItem("activeRoomId")
+              }
+            })
+            // Note: The subscribeToRoom returns an unsubscribe function. 
+            // In this simple restore logic inside useEffect, handling the cleanup 
+            // of this specific sub might be tricky if not careful.
+            // A better approach might be to just set "home" initially 
+            // and let the user re-join, BUT the requirement is to auto-join.
+          } catch (e) {
+            console.error("Failed to restore session", e)
+            setCurrentPage("home")
+          }
+        } else {
+          setCurrentPage("home")
+        }
+
       } else {
-        // Show loading for 3 seconds then go to login
+        // Check for Guest Session first before showing login
+        const guestUserStr = sessionStorage.getItem("guestUser")
+        if (guestUserStr) {
+          try {
+            const guestUser = JSON.parse(guestUserStr)
+            setUser(guestUser)
+
+            // Re-join logic for guest
+            const savedRoomId = localStorage.getItem("activeRoomId")
+            if (savedRoomId) {
+              gameService.subscribeToRoom(savedRoomId, (room) => {
+                if (room) {
+                  setGameData(room)
+                  if (room.status === "auction" || room.status === "completed") {
+                    setCurrentPage("game")
+                  } else if (room.status === "waiting" || room.status === "team-selection") {
+                    setCurrentPage("lobby")
+                  } else {
+                    setCurrentPage("home")
+                  }
+                } else {
+                  setCurrentPage("home")
+                }
+              })
+            } else {
+              setCurrentPage("home")
+            }
+            return // Don't proceed to login timer
+          } catch (e) {
+            console.error("Failed to restore guest session", e)
+          }
+        }
+
+        // Show loading for 3 seconds then go to login if no guest session
         const timer = setTimeout(() => {
           setCurrentPage("login")
         }, 3000)
@@ -42,21 +114,28 @@ export default function IPLAuctionApp() {
 
   const handleLogin = (userData: any) => {
     setUser(userData)
+    if (userData.isGuest) {
+      sessionStorage.setItem("guestUser", JSON.stringify(userData))
+    }
     setCurrentPage("home")
   }
 
   const handleLogout = () => {
     auth.signOut()
+    localStorage.removeItem("activeRoomId")
+    sessionStorage.removeItem("guestUser")
     setCurrentPage("login")
   }
 
   const handleCreateRoom = (roomData: any) => {
     setGameData(roomData)
+    localStorage.setItem("activeRoomId", roomData.id)
     setCurrentPage("lobby")
   }
 
   const handleJoinRoom = (roomData: any) => {
     setGameData(roomData)
+    localStorage.setItem("activeRoomId", roomData.id)
     setCurrentPage("lobby")
   }
 
@@ -129,7 +208,10 @@ export default function IPLAuctionApp() {
           gameData={gameData}
           user={user}
           onStartGame={handleStartGame}
-          onBack={() => setCurrentPage("home")}
+          onBack={() => {
+            setCurrentPage("home")
+            localStorage.removeItem("activeRoomId")
+          }}
         />
         <Toaster />
       </>
@@ -139,7 +221,11 @@ export default function IPLAuctionApp() {
   if (currentPage === "game") {
     return (
       <>
-        <AuctionGame gameData={gameData} user={user} onBack={() => setCurrentPage("lobby")} />
+        <AuctionGame gameData={gameData} user={user} onBack={() => {
+          setCurrentPage("lobby")
+          // Don't remove activeRoomId if going back to lobby, as they are still in the room context
+          // But if they leave the lobby, then remove it.
+        }} />
         <Toaster />
       </>
     )

@@ -7,9 +7,17 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
-import { Mail, Lock, User, Apple, Loader2, Eye, EyeOff, Shield } from "lucide-react"
+import { Mail, Lock, User, Apple, Loader2, Eye, EyeOff, Shield, UserCircle } from "lucide-react"
 import { auth } from "@/lib/firebase"
 import Prism from "./Prism"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 import {
   signInWithEmailAndPassword,
@@ -31,6 +39,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const [loginData, setLoginData] = useState({ email: "", password: "", show: false })
   const [signupData, setSignupData] = useState({ name: "", email: "", password: "", confirmPassword: "", show: false })
   const [loading, setLoading] = useState(false)
+  const [showGuestDialog, setShowGuestDialog] = useState(false)
+  const [guestName, setGuestName] = useState("")
   const { toast } = useToast()
 
   const rotating = ["Real-time bidding", "Modern chat", "Mobile-first design", "Premium UI"]
@@ -125,8 +135,31 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     setLoading(false)
   }
 
-  function handleAppleLogin() {
-    toast({ title: "Coming Soon", description: "Apple Sign-In will be available soon!" })
+  async function handleGuestLogin() {
+    if (!guestName.trim()) {
+      toast({ title: "Name Required", description: "Please enter your name to continue as a guest", variant: "destructive" })
+      return
+    }
+
+    setLoading(true)
+    try {
+      // Create a unique guest ID
+      const guestId = `guest_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`
+
+      toast({ title: "Welcome, Guest!", description: "Logging in as guest..." })
+
+      // Pass guest data to onLogin
+      onLogin({
+        id: guestId,
+        name: guestName.trim(),
+        email: `guest_${guestId.substring(6, 11)}@guest.com`,
+        avatar: null,
+        isGuest: true
+      })
+    } catch (e: any) {
+      toast({ title: "Guest Login Failed", description: e.message, variant: "destructive" })
+    }
+    setLoading(false)
   }
 
   return (
@@ -311,15 +344,14 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                       </div>
                       <div className="h-2 rounded-full bg-white/10 overflow-hidden mt-1">
                         <div
-                          className={`h-full transition-all ${
-                            passwordScore <= 1
-                              ? "bg-red-500 w-1/4"
-                              : passwordScore === 2
+                          className={`h-full transition-all ${passwordScore <= 1
+                            ? "bg-red-500 w-1/4"
+                            : passwordScore === 2
                               ? "bg-yellow-500 w-2/4"
                               : passwordScore === 3
-                              ? "bg-blue-500 w-3/4"
-                              : "bg-emerald-500 w-full"
-                          }`}
+                                ? "bg-blue-500 w-3/4"
+                                : "bg-emerald-500 w-full"
+                            }`}
                         />
                       </div>
                     </div>
@@ -363,26 +395,77 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 <Button
                   variant="outline"
                   onClick={handleGoogleLogin}
-                  className="bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-sm"
+                  className="relative bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-sm group"
                   disabled={loading}
                 >
+                  <div className="absolute -top-2 -right-2 bg-cyan-400 text-[8px] font-black px-1.5 py-0.5 rounded-full shadow-lg animate-pulse text-black uppercase tracking-tighter">
+                    Recommended
+                  </div>
                   {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Google
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={handleAppleLogin}
-                  className="bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-sm"
+                  onClick={() => setShowGuestDialog(true)}
+                  className="bg-slate-800/40 border-slate-700/50 text-slate-300 hover:bg-slate-800/60 hover:text-white backdrop-blur-sm"
                   disabled={loading}
                 >
-                  <Apple className="h-4 w-4 mr-2" />
-                  Apple
+                  <UserCircle className="h-4 w-4 mr-2" />
+                  Guest
                 </Button>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Guest Name Dialog */}
+      <Dialog open={showGuestDialog} onOpenChange={setShowGuestDialog}>
+        <DialogContent className="bg-slate-900 border border-white/10 text-white sm:max-w-[425px] backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black bg-gradient-to-r from-slate-300 to-slate-500 bg-clip-text text-transparent">
+              Continue as Guest
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 flex flex-col gap-2">
+              <span>Enter your name to start playing right away.</span>
+              <span className="text-[10px] text-red-400 font-bold bg-red-400/10 px-2 py-1 rounded inline-flex items-center gap-1 w-fit uppercase">
+                Note: Progress will NOT be saved after closing tab
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="guest-name" className="text-right">
+                Your Name
+              </Label>
+              <div className="relative">
+                <UserCircle className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                <Input
+                  id="guest-name"
+                  placeholder="e.g. Player 1"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40 h-12"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleGuestLogin()
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={handleGuestLogin}
+              disabled={loading || !guestName.trim()}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-12"
+            >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Let's Play!
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
